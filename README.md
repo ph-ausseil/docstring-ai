@@ -59,11 +59,11 @@ Docstring-AI is an intelligent tool designed to **automate the generation of com
 ### 2. **Run**
 
   ```bash
-  poetry run . --path=`YOUR PROJECT OR FOLDER PATH`
+  poetry run . --path=/path/to/repo 
   ```
 
   ```bash
-  poetry run . --path=`YOUR PROJECT PATH` --pr
+  poetry run . --path=/path/to/repo --pr=myusername/myrepo (optional) --pr_name=your_custom_pr_name
   ```
 
 ---

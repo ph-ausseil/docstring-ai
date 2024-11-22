@@ -10,6 +10,7 @@ from chromadb.utils import embedding_functions
 import tiktoken
 from typing import List, Dict
 import hashlib
+from dotenv import load_dotenv
 
 # Constants
 MODEL = "gpt-4o-mini"  # Replace with the appropriate model if necessary
@@ -398,7 +399,7 @@ def save_cache(cache_file: str, cache: Dict[str, str]):
     except Exception as e:
         print(f"Error saving cache file '{cache_file}': {e}")
 
-def main(repo_path: str, api_key: str):
+def process_files(repo_path: str, api_key: str):
     openai.api_key = api_key
 
     # Initialize ChromaDB
@@ -600,16 +601,98 @@ def save_cache(cache_file: str, cache: Dict[str, str]):
     except Exception as e:
         print(f"Error saving cache file '{cache_file}': {e}")
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Add docstrings to Python files in a repository using OpenAI Assistants API and ChromaDB with caching.")
-    parser.add_argument("repo_path", help="Path to the repository directory.")
-    parser.add_argument("--api_key", help="OpenAI API key. Can also be set via OPENAI_API_KEY environment variable.")
 
+# Load environment variables from .env file
+load_dotenv()
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Automate adding docstrings to Python files and integrate with GitHub for PR creation."
+    )
+
+    # CLI Arguments
+    parser.add_argument("--path", required=True, help="Path to the repository or folder containing Python files.")
+    parser.add_argument("--api_key", help="OpenAI API key. Defaults to the OPENAI_API_KEY environment variable.")
+    parser.add_argument("--pr", help="Planned on Roadmap: GitHub repository for PR creation (e.g., owner/repository).")
+    parser.add_argument("--github-token", help="GitHub personal access token. Defaults to the GITHUB_TOKEN environment variable.")
+    parser.add_argument("--branch-name", help="Branch name for the PR. Auto-generated if not provided.")
+    parser.add_argument("--pr-name", help="Custom name for the pull request. Defaults to '-- Add docstrings for files in `path`'.")
+    parser.add_argument("--manual", action="store_true", help="Planned on Roadmap: Enable manual validation circuits for review.")
+    parser.add_argument("--help-flags", action="store_true", help="List and describe all available flags.")
+
+    # Parse arguments
     args = parser.parse_args()
 
+    # If --help-flags is used, display flag descriptions and exit
+    if args.help_flags:
+        print("Available Flags:\n")
+        print("  --path           (Required) Path to the repository or folder containing Python files.")
+        print("  --api_key        OpenAI API key. Defaults to the OPENAI_API_KEY environment variable.")
+        print("  --pr             Planned on Roadmap: GitHub repository for PR creation (e.g., owner/repository).")
+        print("  --github-token   GitHub personal access token. Defaults to the GITHUB_TOKEN environment variable.")
+        print("  --branch-name    Branch name for the PR. Auto-generated if not provided.")
+        print("  --pr-name        Custom name for the pull request. Defaults to '-- Add docstrings for files in `path`'.")
+        print("  --manual         Enable manual validation circuits for review.")
+        print("  --help-flags     List and describe all available flags.")
+        return
+
+    # Retrieve API key
     api_key = args.api_key or os.getenv("OPENAI_API_KEY")
     if not api_key:
-        print("Error: OpenAI API key must be provided via --api_key or OPENAI_API_KEY environment variable.")
+        print("Error: OpenAI API key must be provided via --api_key or the OPENAI_API_KEY environment variable.")
         exit(1)
 
-    main(args.repo_path, api_key)
+    # Path validation
+    path = args.path
+    if not os.path.exists(path):
+        print(f"Error: The specified path '{path}' does not exist.")
+        exit(1)
+
+    # GitHub integration
+    github_token = args.github_token or os.getenv("GITHUB_TOKEN")
+    github_repo = args.pr or os.getenv("GITHUB_REPO")
+    branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
+
+    if args.pr:
+        if not github_token:
+            print("Error: GitHub token must be provided via --github-token or the GITHUB_TOKEN environment variable.")
+            exit(1)
+        if not github_repo:
+            print("Error: GitHub repository must be provided via --pr or the GITHUB_REPO environment variable.")
+            exit(1)
+
+        print(f"GitHub PR enabled for repository: {github_repo}")
+        print(f"Using branch: {branch_name}")
+        print(f"PR Name: {pr_name}")
+        print(f"GitHub token: {'[HIDDEN]' if github_token else 'NOT SET'}")
+
+        # Placeholder for GitHub PR logic
+        create_github_pr(path, github_token, github_repo, branch_name, pr_name)
+
+    # Manual validation
+    if args.manual:
+        print("Manual validation circuits are enabled. Placeholder for manual review logic.")
+
+    # Process files
+    process_files(path, api_key)
+
+def process_files(path, api_key):
+    """
+    Placeholder function for processing Python files and generating docstrings.
+    """
+    print(f"Processing files in {path} using API key {api_key}.")
+    # Actual implementation would go here
+
+def create_github_pr(path, github_token, github_repo, branch_name, pr_name):
+    """
+    Placeholder function for creating a GitHub pull request.
+    """
+    print(f"Creating PR for repository {github_repo} on branch {branch_name} with name '{pr_name}' and changes in {path}.")
+    # Actual implementation would go here
+
+
+if __name__ == "__main__":
+    main()
+
