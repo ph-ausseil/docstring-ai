@@ -9,7 +9,8 @@ from src.utils import (
     get_python_files,
     sort_files_by_size,
     prompt_user_confirmation,
-    show_diff
+    show_diff,
+    compute_sha256
 )
 from src.chroma_utils import (
     initialize_chroma,

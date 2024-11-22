@@ -22,7 +22,6 @@ from .config import EMBEDDING_MODEL
 def initialize_chroma() -> chromadb.Client:
     """Initialize ChromaDB client."""
     client = chromadb.Client(Settings(
-        chroma_api_impl="rest",
         chroma_server_host="localhost",
         chroma_server_http_port="8000"
     ))
@@ -39,7 +38,7 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
                 name=collection_name,
                 embedding_function=embedding_functions.OpenAIEmbeddingFunction(
                     api_key=openai.api_key,
-                    model=EMBEDDING_MODEL
+                    #model=EMBEDDING_MODEL
                 )
             )
     logging.info(f"ChromaDB Collection '{collection_name}' not found. Creating a new one.")
@@ -47,7 +46,7 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
         name=collection_name,
         embedding_function=embedding_functions.OpenAIEmbeddingFunction(
             api_key=openai.api_key,
-            model=EMBEDDING_MODEL
+            #model=EMBEDDING_MODEL
         )
     )
     return collection
