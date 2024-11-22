@@ -48,9 +48,7 @@ Docstring-AI is an intelligent tool designed to **automate the generation of com
 
 3. Add your API Key
 
-    Open .env.template file,
-    Add your OpenAI API
-    Rename the file .env
+    `cp .env.template .env`
 
 4. Install The project
 

@@ -11,6 +11,11 @@ import tiktoken
 from typing import List, Dict
 import hashlib
 from dotenv import load_dotenv
+from datetime import datetime
+from github import Github, GithubException
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Constants
 MODEL = "gpt-4o-mini"  # Replace with the appropriate model if necessary
@@ -21,6 +26,7 @@ RETRY_BACKOFF = 2  # seconds
 CHROMA_COLLECTION_NAME = "python_file_contexts"
 CACHE_FILE_NAME = "docstring_cache.json"  # Name of the cache file
 
+
 def get_python_files(repo_path: str) -> List[str]:
     """Recursively retrieve all Python files in the repository."""
     python_files = []
@@ -30,11 +36,13 @@ def get_python_files(repo_path: str) -> List[str]:
                 python_files.append(os.path.join(root, file))
     return python_files
 
+
 def sort_files_by_size(file_paths: List[str]) -> List[str]:
     """Sort files in ascending order based on their file size."""
     sorted_files = sorted(file_paths, key=lambda x: os.path.getsize(x))
     print(f"Files sorted by size (ascending).")
     return sorted_files
+
 
 def initialize_chroma() -> chromadb.Client:
     """Initialize ChromaDB client."""
@@ -44,6 +52,7 @@ def initialize_chroma() -> chromadb.Client:
         chroma_server_http_port="8000"
     ))
     return client
+
 
 def get_or_create_collection(client: chromadb.Client, collection_name: str) -> chromadb.Collection:
     """Retrieve an existing collection or create a new one."""
@@ -65,6 +74,7 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
     )
     return collection
 
+
 def embed_and_store_files(collection: chromadb.Collection, python_files: List[str]):
     """Embed each Python file and store in ChromaDB."""
     ids = []
@@ -81,7 +91,7 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
             print(f"Prepared file for embedding: {file_path}")
         except Exception as e:
             print(f"Error reading file {file_path}: {e}")
-    
+
     # Add to ChromaDB
     try:
         collection.add(
@@ -92,6 +102,7 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
         print(f"Embedded and stored {len(ids)} files in ChromaDB.")
     except Exception as e:
         print(f"Error adding documents to ChromaDB: {e}")
+
 
 def parse_classes(file_path: str) -> Dict[str, List[str]]:
     """
@@ -111,6 +122,7 @@ def parse_classes(file_path: str) -> Dict[str, List[str]]:
     except Exception as e:
         print(f"Error parsing classes in {file_path}: {e}")
     return classes
+
 
 def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, List[str]], max_tokens: int) -> str:
     """
@@ -135,6 +147,7 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
             token_count += doc_tokens
     return context
 
+
 def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant") -> str:
     """
     Initialize or retrieve an existing Assistant.
@@ -148,7 +161,7 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
             if assistant.get("name") == assistant_name:
                 print(f"Assistant '{assistant_name}' found with ID: {assistant['id']}")
                 return assistant['id']
-        
+
         # If Assistant does not exist, create one
         instructions = (
             "You are an AI assistant specialized in adding comprehensive docstrings to Python code. "
@@ -175,6 +188,7 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
         print(f"Error initializing Assistant: {e}")
         return None
 
+
 def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: List[str]):
     """
     Update the Assistant's tool_resources with the uploaded file IDs.
@@ -183,20 +197,20 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
         # Fetch current assistant details
         assistant = openai.Assistant.retrieve(assistant_id)
         tool_resources = assistant.get("tool_resources", {})
-        
+
         # Update 'code_interpreter' tool
         if "code_interpreter" not in tool_resources:
             tool_resources["code_interpreter"] = {}
         if "file_ids" not in tool_resources["code_interpreter"]:
             tool_resources["code_interpreter"]["file_ids"] = []
         tool_resources["code_interpreter"]["file_ids"].extend(file_ids)
-        
+
         # Similarly, update 'file_search' tool if used
         if "file_search" in tool_resources:
             if "file_ids" not in tool_resources["file_search"]:
                 tool_resources["file_search"]["file_ids"] = []
             tool_resources["file_search"]["file_ids"].extend(file_ids)
-        
+
         # Update the Assistant with new tool_resources
         updated_assistant = openai.Assistant.modify(
             assistant_id,
@@ -205,6 +219,7 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
         print(f"Assistant '{assistant_id}' tool_resources updated with {len(file_ids)} files.")
     except Exception as e:
         print(f"Error updating Assistant's tool_resources: {e}")
+
 
 def create_thread(api_key: str, assistant_id: str, initial_messages: List[dict] = None) -> str:
     """
@@ -223,6 +238,7 @@ def create_thread(api_key: str, assistant_id: str, initial_messages: List[dict] 
         print(f"Error creating Thread: {e}")
         return None
 
+
 def construct_few_shot_prompt(collection: chromadb.Collection, classes: Dict[str, List[str]], max_tokens: int) -> str:
     """
     Constructs a few-shot prompt using context summaries from ChromaDB.
@@ -231,6 +247,7 @@ def construct_few_shot_prompt(collection: chromadb.Collection, classes: Dict[str
     few_shot_examples = generate_few_shot_examples(context)
     prompt = few_shot_examples
     return prompt
+
 
 def generate_few_shot_examples(context: str) -> str:
     """
@@ -244,6 +261,7 @@ def generate_few_shot_examples(context: str) -> str:
         "Now, please add appropriate docstrings to the following Python code:\n\n"
     )
     return examples
+
 
 def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code: str, context: str) -> str:
     """
@@ -272,7 +290,7 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
             max_completion_tokens=5000  # Adjust as needed
         )
         print(f"Run created with ID: {run['id']} for Thread: {thread_id}")
-    
+
         # Poll for Run completion
         while True:
             current_run = openai.Run.retrieve(run['id'])
@@ -286,26 +304,27 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
             else:
                 print(f"Run {run['id']} status: {status}. Waiting for completion...")
                 time.sleep(RETRY_BACKOFF)
-    
+
         # Retrieve the assistant's response
         thread = openai.Thread.retrieve(thread_id)
         messages = thread.get('messages', [])
         if not messages:
             print(f"No messages found in Thread: {thread_id}")
             return None
-    
+
         # Assuming the last message is the assistant's response
         assistant_message = messages[-1].get('content', "")
         if not assistant_message:
             print("Assistant's message is empty.")
             return None
-    
+
         # Extract code block from assistant's message
         modified_code = extract_code_from_message(assistant_message)
         return modified_code
     except Exception as e:
         print(f"Error during docstring addition: {e}")
         return None
+
 
 def extract_code_from_message(message: str) -> str:
     """
@@ -318,6 +337,7 @@ def extract_code_from_message(message: str) -> str:
         return match.group(1)
     else:
         raise Exception("No code block found in the assistant's response.")
+
 
 def extract_description_from_docstrings(code_with_docstrings: str) -> str:
     """
@@ -341,6 +361,7 @@ def extract_description_from_docstrings(code_with_docstrings: str) -> str:
         print(f"Error parsing code for description: {e}")
     return "; ".join(descriptions)
 
+
 def store_class_summary(collection: chromadb.Collection, file_path: str, class_name: str, summary: str):
     """
     Stores the class summary in ChromaDB for future context.
@@ -356,6 +377,7 @@ def store_class_summary(collection: chromadb.Collection, file_path: str, class_n
     except Exception as e:
         print(f"Error storing class summary for '{class_name}': {e}")
 
+
 def compute_sha256(file_path: str) -> str:
     """
     Computes the SHA-256 hash of a file.
@@ -370,6 +392,7 @@ def compute_sha256(file_path: str) -> str:
     except Exception as e:
         print(f"Error computing SHA-256 for {file_path}: {e}")
         return ""
+
 
 def load_cache(cache_file: str) -> Dict[str, str]:
     """
@@ -388,6 +411,7 @@ def load_cache(cache_file: str) -> Dict[str, str]:
         print(f"Error loading cache file '{cache_file}': {e}")
         return {}
 
+
 def save_cache(cache_file: str, cache: Dict[str, str]):
     """
     Saves the cache to a JSON file.
@@ -399,7 +423,96 @@ def save_cache(cache_file: str, cache: Dict[str, str]):
     except Exception as e:
         print(f"Error saving cache file '{cache_file}': {e}")
 
-def process_files(repo_path: str, api_key: str):
+
+def traverse_repo(repo_path: str, pr_depth: int) -> Dict[int, List[str]]:
+    """
+    Traverse the repository and categorize folders based on their depth.
+    Returns a dictionary mapping depth levels to lists of folder paths.
+    """
+    folder_dict = {}
+    for root, dirs, files in os.walk(repo_path):
+        # Calculate the current folder's depth relative to repo_path
+        rel_path = os.path.relpath(root, repo_path)
+        if rel_path == ".":
+            depth = 0
+        else:
+            depth = rel_path.count(os.sep) + 1  # +1 because rel_path doesn't start with sep
+        if depth <= pr_depth:
+            folder_dict.setdefault(depth, []).append(root)
+    return folder_dict
+
+
+def create_github_pr(path, github_token, github_repo, branch_name, pr_name):
+    """
+    Creates a GitHub pull request for the specified repository, branch, and PR name.
+    """
+    try:
+        g = Github(github_token)
+        repo = g.get_repo(github_repo)
+
+        # Create a new branch from the default branch
+        default_branch = repo.default_branch
+        source = repo.get_branch(default_branch)
+        ref = f"refs/heads/{branch_name}"
+
+        try:
+            repo.get_git_ref(ref)
+            print(f"Branch '{branch_name}' already exists.")
+        except GithubException as e:
+            if e.status == 404:
+                repo.create_git_ref(ref=ref, sha=source.commit.sha)
+                print(f"Branch '{branch_name}' created.")
+            else:
+                raise e
+
+        # Stage changes (assuming changes are already made in the local repo)
+        # Here, you'd typically add, commit, and push changes using Git commands
+        # For automation, consider using GitPython or shell commands
+        # This script assumes that the changes are already pushed to the branch
+
+        # Create Pull Request
+        pr = repo.create_pull(
+            title=pr_name,
+            body="Automated docstring additions.",
+            head=branch_name,
+            base=default_branch
+        )
+        print(f"Pull Request created: {pr.html_url}")
+    except GithubException as e:
+        print(f"GitHub API error: {e.data['message']}")
+    except Exception as e:
+        print(f"Error creating GitHub PR: {e}")
+
+def check_for_uncommitted_changes(repo_path):
+    """
+    Checks for uncommitted changes in the given repository path.
+    Exits the script if changes are found.
+    """
+    try:
+        # Run git status to check for uncommitted changes
+        result = subprocess.run(
+            ["git", "-C", repo_path, "status", "--porcelain"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        # Check the output for uncommitted changes
+        if result.stdout.strip():
+            print("\n⚠️ Uncommitted changes detected in the repository!")
+            print("Please commit or stash your changes before running the script.\n")
+            sys.exit(1)  # Exit the script with an error code
+        else:
+            print("✅ No uncommitted changes detected. Proceeding...")
+    except FileNotFoundError:
+        print("\n❌ Git is not installed or not available in the PATH.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ Error checking for uncommitted changes: {e}")
+        sys.exit(1)
+
+
+def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, github_token: str, github_repo: str, branch_name: str, pr_name: str, pr_depth: int):
     openai.api_key = api_key
 
     # Initialize ChromaDB
@@ -431,7 +544,7 @@ def process_files(repo_path: str, api_key: str):
             print(f"Skipping unchanged file: {file_path}")
         else:
             files_to_process.append(file_path)
-    
+
     print(f"\n{len(files_to_process)} files to process after cache check.")
 
     if not files_to_process:
@@ -462,7 +575,12 @@ def process_files(repo_path: str, api_key: str):
         print("Thread creation failed. Exiting.")
         return
 
-    # Step 8: Process Each Python File
+    # Step 8: Traverse repository and categorize folders based on pr_depth
+    print("\nTraversing repository to categorize folders based on pr_depth...")
+    folder_dict = traverse_repo(repo_path, pr_depth)
+    print(f"Found {len(folder_dict)} depth levels up to {pr_depth}.")
+
+    # Step 9: Process Each Python File for Docstrings
     print("\nProcessing Python files to add docstrings...")
     context_summary = []
     for idx, file_path in enumerate(files_to_process, 1):
@@ -482,7 +600,7 @@ def process_files(repo_path: str, api_key: str):
         else:
             # Retrieve relevant context summaries from ChromaDB
             context = get_relevant_context(collection, classes, max_tokens=MAX_TOKENS // 2)  # Allocate half tokens to context
-            print(f"Retrieved context with {tiktoken.get_encoding('gpt2').encode(context).__len__()} tokens.")
+            print(f"Retrieved context with {len(tiktoken.get_encoding('gpt2').encode(context))} tokens.")
 
         # Construct few-shot prompt
         few_shot_prompt = construct_few_shot_prompt(collection, classes, max_tokens=MAX_TOKENS)
@@ -518,7 +636,7 @@ def process_files(repo_path: str, api_key: str):
                     if class_docstring:
                         summary = class_docstring.strip().split('\n')[0]  # First line as summary
                         store_class_summary(collection, os.path.relpath(file_path, repo_path), class_name, summary)
-                
+
                 # Update cache with new hash
                 new_hash = compute_sha256(file_path)
                 cache[os.path.relpath(file_path, repo_path)] = new_hash
@@ -532,7 +650,7 @@ def process_files(repo_path: str, api_key: str):
             current_hash = compute_sha256(file_path)
             cache[os.path.relpath(file_path, repo_path)] = current_hash
 
-    # Step 9: Save Context Summary
+    # Step 10: Save Context Summary
     context_summary_path = os.path.join(repo_path, "context_summary.json")
     try:
         with open(context_summary_path, "w", encoding='utf-8') as f:
@@ -541,8 +659,29 @@ def process_files(repo_path: str, api_key: str):
     except Exception as e:
         print(f"Error saving context summary: {e}")
 
-    # Step 10: Save Cache
+    # Step 11: Save Cache
     save_cache(cache_path, cache)
+
+    # Step 12: Create Pull Requests Based on pr_depth
+    if create_pr and github_token and github_repo:
+        print("\nCreating Pull Requests based on pr_depth...")
+        for depth, folders in folder_dict.items():
+            for folder in folders:
+                # Collect all Python files in the folder
+                pr_files = get_python_files(folder)
+                if not pr_files:
+                    continue  # Skip folders with no Python files
+
+                # Generate a unique branch name for the folder
+                folder_rel_path = os.path.relpath(folder, repo_path).replace(os.sep, "_")
+                folder_branch_name = f"feature/docstrings-folder-{folder_rel_path}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+                # Generate PR name
+                folder_pr_name = f"-- Add docstrings for folder `{folder_rel_path}`" if not args.pr_name else args.pr_name
+
+                # Create GitHub PR
+                create_github_pr(folder, github_token, github_repo, folder_branch_name, folder_pr_name)
+
 
 def extract_class_docstring(code: str, class_name: str) -> str:
     """
@@ -558,53 +697,6 @@ def extract_class_docstring(code: str, class_name: str) -> str:
         print(f"Error extracting docstring for class '{class_name}': {e}")
     return ""
 
-def compute_sha256(file_path: str) -> str:
-    """
-    Computes the SHA-256 hash of a file.
-    """
-    sha256_hash = hashlib.sha256()
-    try:
-        with open(file_path, "rb") as f:
-            # Read and update hash string value in blocks of 4K
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
-    except Exception as e:
-        print(f"Error computing SHA-256 for {file_path}: {e}")
-        return ""
-
-def load_cache(cache_file: str) -> Dict[str, str]:
-    """
-    Loads the cache from a JSON file.
-    Returns a dictionary mapping file paths to their SHA-256 hashes.
-    """
-    if not os.path.exists(cache_file):
-        print(f"No cache file found at '{cache_file}'. Starting with an empty cache.")
-        return {}
-    try:
-        with open(cache_file, 'r', encoding='utf-8') as f:
-            cache = json.load(f)
-        print(f"Loaded cache with {len(cache)} entries.")
-        return cache
-    except Exception as e:
-        print(f"Error loading cache file '{cache_file}': {e}")
-        return {}
-
-def save_cache(cache_file: str, cache: Dict[str, str]):
-    """
-    Saves the cache to a JSON file.
-    """
-    try:
-        with open(cache_file, 'w', encoding='utf-8') as f:
-            json.dump(cache, f, indent=2)
-        print(f"Cache saved with {len(cache)} entries.")
-    except Exception as e:
-        print(f"Error saving cache file '{cache_file}': {e}")
-
-
-# Load environment variables from .env file
-load_dotenv()
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -614,11 +706,12 @@ def main():
     # CLI Arguments
     parser.add_argument("--path", required=True, help="Path to the repository or folder containing Python files.")
     parser.add_argument("--api_key", help="OpenAI API key. Defaults to the OPENAI_API_KEY environment variable.")
-    parser.add_argument("--pr", help="Planned on Roadmap: GitHub repository for PR creation (e.g., owner/repository).")
+    parser.add_argument("--pr", help="GitHub repository for PR creation (e.g., owner/repository).")
     parser.add_argument("--github-token", help="GitHub personal access token. Defaults to the GITHUB_TOKEN environment variable.")
     parser.add_argument("--branch-name", help="Branch name for the PR. Auto-generated if not provided.")
     parser.add_argument("--pr-name", help="Custom name for the pull request. Defaults to '-- Add docstrings for files in `path`'.")
-    parser.add_argument("--manual", action="store_true", help="Planned on Roadmap: Enable manual validation circuits for review.")
+    parser.add_argument("--pr-depth", type=int, default=2, help="Depth level for creating PRs per folder. Default is 2.")
+    parser.add_argument("--manual", action="store_true", help="Enable manual validation circuits for review.")
     parser.add_argument("--help-flags", action="store_true", help="List and describe all available flags.")
 
     # Parse arguments
@@ -629,10 +722,11 @@ def main():
         print("Available Flags:\n")
         print("  --path           (Required) Path to the repository or folder containing Python files.")
         print("  --api_key        OpenAI API key. Defaults to the OPENAI_API_KEY environment variable.")
-        print("  --pr             Planned on Roadmap: GitHub repository for PR creation (e.g., owner/repository).")
+        print("  --pr             GitHub repository for PR creation (e.g., owner/repository).")
         print("  --github-token   GitHub personal access token. Defaults to the GITHUB_TOKEN environment variable.")
         print("  --branch-name    Branch name for the PR. Auto-generated if not provided.")
         print("  --pr-name        Custom name for the pull request. Defaults to '-- Add docstrings for files in `path`'.")
+        print("  --pr-depth      Depth level for creating PRs per folder. Default is 2.")
         print("  --manual         Enable manual validation circuits for review.")
         print("  --help-flags     List and describe all available flags.")
         return
@@ -649,9 +743,12 @@ def main():
         print(f"Error: The specified path '{path}' does not exist.")
         exit(1)
 
+    check_for_uncommitted_changes(path)
+
     # GitHub integration
     github_token = args.github_token or os.getenv("GITHUB_TOKEN")
     github_repo = args.pr or os.getenv("GITHUB_REPO")
+    pr_depth = args.pr_depth
     branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
 
@@ -667,31 +764,14 @@ def main():
         print(f"Using branch: {branch_name}")
         print(f"PR Name: {pr_name}")
         print(f"GitHub token: {'[HIDDEN]' if github_token else 'NOT SET'}")
-
-        # Placeholder for GitHub PR logic
-        create_github_pr(path, github_token, github_repo, branch_name, pr_name)
+        print(f"PR Depth: {pr_depth}")
 
     # Manual validation
     if args.manual:
         print("Manual validation circuits are enabled. Placeholder for manual review logic.")
 
-    # Process files
-    process_files(path, api_key)
-
-def process_files(path, api_key):
-    """
-    Placeholder function for processing Python files and generating docstrings.
-    """
-    print(f"Processing files in {path} using API key {api_key}.")
-    # Actual implementation would go here
-
-def create_github_pr(path, github_token, github_repo, branch_name, pr_name):
-    """
-    Placeholder function for creating a GitHub pull request.
-    """
-    print(f"Creating PR for repository {github_repo} on branch {branch_name} with name '{pr_name}' and changes in {path}.")
-    # Actual implementation would go here
-
+    # Process files and handle PRs
+    process_files_and_create_prs(path, api_key, args.pr, github_token, github_repo, branch_name, pr_name, pr_depth)
 
 if __name__ == "__main__":
     main()
