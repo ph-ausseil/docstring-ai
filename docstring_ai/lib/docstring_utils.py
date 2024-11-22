@@ -66,7 +66,7 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
                         "```"
                     ),
         )
-        logging.info(f"Run created with ID: {run['id']} for Thread: {thread_id}")
+        logging.info(f"Run created with ID: {run.id} for Thread: {thread_id}")
 
         # Poll for Run completion
         while True:

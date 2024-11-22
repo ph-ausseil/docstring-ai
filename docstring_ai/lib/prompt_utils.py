@@ -45,8 +45,8 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
     """
     try:
         openai.beta.assistants.update(
-            assistant_id,
-            file_ids=[file_ids]
+            assistant_id=assistant_id,
+            file_ids=file_ids
         )
         logging.info(f"Assistant '{assistant_id}' tool_resources updated with {len(file_ids)} files.")
     except Exception as e:
