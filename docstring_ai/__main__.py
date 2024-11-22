@@ -16,14 +16,14 @@ import subprocess
 import sys
 import logging
 import difflib
-from src.docstring_utils import (
+from docstring_ai.lib.docstring_utils import (
     add_docstrings_to_code,
     parse_classes,
     extract_class_docstring,
     extract_description_from_docstrings
 )
-from src.process import process_files_and_create_prs
-from src.utils import (
+from docstring_ai.lib.process import process_files_and_create_prs
+from docstring_ai.lib.utils import (
     check_git_repo,
     has_uncommitted_changes,
     load_cache,
