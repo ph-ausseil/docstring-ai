@@ -40,8 +40,8 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
             },
             instructions=instructions
         )
-        logging.info(f"Assistant '{assistant_name}' created with ID: {assistant['id']}")
-        return assistant['id']
+        logging.info(f"Assistant '{assistant_name}' created with ID: {assistant.id}")
+        return assistant.id
     except Exception as e:
         logging.error(f"Error initializing Assistant: {e}")
         return None
