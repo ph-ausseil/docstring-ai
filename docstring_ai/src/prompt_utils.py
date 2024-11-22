@@ -1,10 +1,9 @@
 import openai
-import ast
 import chromadb
-from chromadb.utils import get_relevant_context
+from src.chroma_utils import get_relevant_context
 import logging
 from typing import List, Dict
-from .config import MODEL
+from src.config import MODEL
 
 
 def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant") -> str:

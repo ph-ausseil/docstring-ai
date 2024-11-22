@@ -3,7 +3,6 @@ import openai
 import argparse
 import time
 import json
-import ast
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
@@ -36,11 +35,9 @@ from src.utils import (
 
 # Load environment variables from .env file
 load_dotenv()
-
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
+    format='%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d %(message)s',
     handlers=[
         logging.FileHandler("docstring_ai.log"),
         logging.StreamHandler(sys.stdout)

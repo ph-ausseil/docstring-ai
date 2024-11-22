@@ -3,7 +3,6 @@ import openai
 import argparse
 import time
 import json
-import ast
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
