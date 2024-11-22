@@ -46,7 +46,11 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
     try:
         openai.beta.assistants.update(
             assistant_id=assistant_id,
-            file_ids=file_ids
+            tool_resources={
+                "file_search": {
+                    "file_ids": file_ids
+                    }
+            }
         )
         logging.info(f"Assistant '{assistant_id}' tool_resources updated with {len(file_ids)} files.")
     except Exception as e:
@@ -63,7 +67,7 @@ def create_thread(api_key: str, assistant_id: str, initial_messages: List[dict] 
             "assistant_id": assistant_id,
             "messages": initial_messages if initial_messages else []
         }
-        thread = openai.Thread.create(**payload)
+        thread = openai.beta.threads.create(**payload)
         logging.info(f"Thread created with ID: {thread['id']}")
         return thread['id']
     except Exception as e:
