@@ -98,19 +98,32 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
         logging.error("Assistant initialization failed. Exiting.")
         return
 
-    # Step 6: Update Assistant's tool_resources with uploaded file IDs
-    logging.info("\nUpdating Assistant's tool resources...")
-    # Retrieve all file IDs from ChromaDB
-    collection_data = collection.get()  # Retrieve the collection data
-    file_ids = []  # Initialize an empty list to store file IDs
+    # Step 6: Upload files to OpenAI and update Assistant's tool resources
+    logging.info("\nUploading files to OpenAI and updating Assistant's tool resources...")
+    file_ids = []  # List to store file IDs returned by OpenAI
 
-    print(collection_data['ids'])
-    for doc in collection_data['ids']:
-        file_id = doc['id']  # Extract the ID
-        logging.info(f"Processing document with ID: {file_id}")  # Log each ID
-        file_ids.append(file_id)  # Append the ID to the list
+    for file_path in files_to_process:
+        try:
+            # Upload the file to OpenAI
+            with open(file_path, "rb") as f:
+                response = openai.File.create(
+                    file=f,
+                    purpose= "assistants"
+                )
+            file_id = response.id
+            if file_id:
+                file_ids.append(file_id)
+                logging.info(f"Uploaded {file_path} to OpenAI with file ID: {file_id}")
+            else:
+                logging.warning(f"Failed to retrieve file ID for {file_path}")
+        except Exception as e:
+            logging.error(f"Error uploading {file_path} to OpenAI: {e}")
 
-    logging.info(f"Retrieved {len(file_ids)} file IDs from the collection.") 
+    if not file_ids:
+        logging.error("No files were successfully uploaded to OpenAI. Exiting.")
+        return
+
+    # Update Assistant's tool resources with OpenAI file IDs
     update_assistant_tool_resources(api_key, assistant_id, file_ids)
 
     # Step 7: Create a Thread
