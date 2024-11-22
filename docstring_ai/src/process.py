@@ -1,6 +1,8 @@
 import os
 import logging
 import openai
+import datetime
+import tiktoken
 from src.utils import (
     check_git_repo,
     has_uncommitted_changes,
@@ -10,7 +12,16 @@ from src.utils import (
     sort_files_by_size,
     prompt_user_confirmation,
     show_diff,
-    compute_sha256
+    compute_sha256,
+    traverse_repo,
+    create_backup
+)
+from src.prompt_utils import (
+    initialize_assistant,
+    update_assistant_tool_resources,
+    create_thread,
+    construct_few_shot_prompt
+
 )
 from src.chroma_utils import (
     initialize_chroma,
@@ -125,7 +136,7 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
         else:
             # Retrieve relevant context summaries from ChromaDB
             context = get_relevant_context(collection, classes, max_tokens=MAX_TOKENS // 2)  # Allocate half tokens to context
-            logging.info(f"Retrieved context with {len(tiktoken.get_encoding('gpt2').encode(context))} tokens.")
+            logging.info(f"Retrieved context with {len(tiktoken.get_encoding('gpt4o').encode(context))} tokens.")
 
         # Construct few-shot prompt
         few_shot_prompt = construct_few_shot_prompt(collection, classes, max_tokens=MAX_TOKENS)
