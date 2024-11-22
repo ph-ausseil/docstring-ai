@@ -485,31 +485,47 @@ def create_github_pr(path, github_token, github_repo, branch_name, pr_name):
 
 def check_for_uncommitted_changes(repo_path):
     """
-    Checks for uncommitted changes in the given repository path.
-    Exits the script if changes are found.
+    Checks if the directory is a Git repository and for uncommitted changes.
+    Returns True if a backup is needed, False otherwise.
     """
     try:
-        # Run git status to check for uncommitted changes
+        # Check if Git is installed and the path is a Git repository
+        subprocess.run(
+            ["git", "-C", repo_path, "rev-parse", "--is-inside-work-tree"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        print("✅ Git repository detected.")
+
+        # Check for uncommitted changes
         result = subprocess.run(
             ["git", "-C", repo_path, "status", "--porcelain"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
-
-        # Check the output for uncommitted changes
         if result.stdout.strip():
             print("\n⚠️ Uncommitted changes detected in the repository!")
-            print("Please commit or stash your changes before running the script.\n")
-            sys.exit(1)  # Exit the script with an error code
+            print("Consider committing or stashing your changes before running the script.")
+            confirm = input("Do you wish to continue? (yes/no): ").strip().lower()
+            if confirm != "yes":
+                print("Operation aborted by the user.")
+                sys.exit(0)
+            return True  # Uncommitted changes, backup recommended
         else:
-            print("✅ No uncommitted changes detected. Proceeding...")
+            print("✅ No uncommitted changes detected. Proceeding without backups.")
+            return False  # Git present, no backup needed
     except FileNotFoundError:
         print("\n❌ Git is not installed or not available in the PATH.")
-        sys.exit(1)
+        return True  # Git unavailable, backup recommended
+    except subprocess.CalledProcessError:
+        print("\n❌ The specified path is not a Git repository.")
+        return True  # Not a Git repo, backup recommended
     except Exception as e:
         print(f"\n❌ Error checking for uncommitted changes: {e}")
-        sys.exit(1)
+        return True  # Error, assume backup is needed
 
 
 def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, github_token: str, github_repo: str, branch_name: str, pr_name: str, pr_depth: int):
@@ -743,14 +759,20 @@ def main():
         print(f"Error: The specified path '{path}' does not exist.")
         exit(1)
 
-    check_for_uncommitted_changes(path)
-
     # GitHub integration
     github_token = args.github_token or os.getenv("GITHUB_TOKEN")
     github_repo = args.pr or os.getenv("GITHUB_REPO")
     pr_depth = args.pr_depth
     branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
+
+    if not args.pr:
+        print("\n⚠️ WARNING: You are running the script without GitHub PR creation.")
+        print("Modified files will be directly edited in place. Proceed with caution!")
+        confirm = input("Do you wish to continue? (yes/no): ").strip().lower()
+        if confirm != "yes":
+            print("Operation aborted by the user.")
+            sys.exit(0)
 
     if args.pr:
         if not github_token:
