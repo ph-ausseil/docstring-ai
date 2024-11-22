@@ -1,5 +1,6 @@
 import os
 import logging
+import openai
 from src.utils import (
     check_git_repo,
     has_uncommitted_changes,

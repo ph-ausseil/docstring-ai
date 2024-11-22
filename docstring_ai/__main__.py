@@ -101,14 +101,14 @@ def main():
     pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
     manual = args.manual
 
-    if not args.pr:
+    if not github_repo:
         print("\n⚠️ WARNING: You are running the script without GitHub PR creation.")
         print("Modified files will be directly edited in place. Proceed with caution!")
         if not prompt_user_confirmation("Do you wish to continue?"):
             print("Operation aborted by the user.")
             sys.exit(0)
 
-    if args.pr:
+    if github_repo:
         if not github_token:
             print("Error: GitHub token must be provided via --github-token or the GITHUB_TOKEN environment variable.")
             exit(1)
