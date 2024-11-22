@@ -56,8 +56,8 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
         # Create a Run with context
         message = openai.beta.threads.messages.create(
             thread_id=thread_id,
-            role=  "user",
-            content= (
+            role="user",
+            content=(
                         f"{context}\n\n"
                         "Please add appropriate docstrings to the following Python code. "
                         "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
@@ -70,33 +70,33 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
 
         # Poll for Run completion
         while True:
-            current_run = openai.threads.runs.create(
+            current_run = openai.beta.threads.runs.create(
                 thread_id=thread_id,
                 assistant_id=assistant_id,
             )
             status = current_run['status']
             if status == 'completed':
-                logging.info(f"Run {run['id']} completed.")
+                logging.info(f"Run {run.id} completed.")
                 break
             elif status in ['failed', 'expired', 'cancelled']:
-                logging.error(f"Run {run['id']} ended with status: {status}")
+                logging.error(f"Run {run.id} ended with status: {status}")
                 return None
             else:
-                logging.info(f"Run {run['id']} status: {status}. Waiting for completion...")
+                logging.info(f"Run {run.id} status: {status}. Waiting for completion...")
                 time.sleep(RETRY_BACKOFF)
 
         # Retrieve the assistant's response
-        thread = openai.threads.runs.retrieve(
+        thread = openai.beta.threads.runs.retrieve(
             thread_id=thread_id,
             run_id=current_run.id
             )
-        messages = thread.get('messages', [])
+        messages = thread.messages
         if not messages:
             logging.error(f"No messages found in Thread: {thread_id}")
             return None
 
         # Assuming the last message is the assistant's response
-        assistant_message = messages[-1].get('content', "")
+        assistant_message = messages[-1].content
         if not assistant_message:
             logging.error("Assistant's message is empty.")
             return None
