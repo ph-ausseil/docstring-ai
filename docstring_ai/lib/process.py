@@ -101,7 +101,16 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
     # Step 6: Update Assistant's tool_resources with uploaded file IDs
     logging.info("\nUpdating Assistant's tool resources...")
     # Retrieve all file IDs from ChromaDB
-    file_ids = [doc['id'] for doc in collection.get()['ids']]
+    collection_data = collection.get()  # Retrieve the collection data
+    file_ids = []  # Initialize an empty list to store file IDs
+
+    print(collection_data['ids'])
+    for doc in collection_data['ids']:
+        file_id = doc['id']  # Extract the ID
+        logging.info(f"Processing document with ID: {file_id}")  # Log each ID
+        file_ids.append(file_id)  # Append the ID to the list
+
+    logging.info(f"Retrieved {len(file_ids)} file IDs from the collection.") 
     update_assistant_tool_resources(api_key, assistant_id, file_ids)
 
     # Step 7: Create a Thread

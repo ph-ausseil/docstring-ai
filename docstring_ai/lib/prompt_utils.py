@@ -14,11 +14,11 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
     try:
         # List existing assistants
         response = openai.beta.assistants.list()
-        assistants = response['data']
+        assistants = response.data
         for assistant in assistants:
-            if assistant.get("name") == assistant_name:
-                logging.info(f"Assistant '{assistant_name}' found with ID: {assistant['id']}")
-                return assistant['id']
+            if assistant.name == assistant_name:
+                logging.info(f"Assistant '{assistant_name}' found with ID: {assistant.id}")
+                return assistant.id
 
         # If Assistant does not exist, create one
         instructions = (
@@ -30,14 +30,6 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
             description="Assistant to add docstrings to Python files.",
             model=MODEL,
             tools=[{"type": "code_interpreter"}, {"type": "file_search"}],
-            tool_resources={
-                "code_interpreter": {
-                    "file_ids": []  # To be populated after uploading files
-                },
-                "file_search": {
-                    "file_ids": []  # Similarly, if needed
-                }
-            },
             instructions=instructions
         )
         logging.info(f"Assistant '{assistant_name}' created with ID: {assistant.id}")
@@ -52,27 +44,9 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
     Update the Assistant's tool_resources with the uploaded file IDs.
     """
     try:
-        # Fetch current assistant details
-        assistant = openai.beta.assistants.retrieve(assistant_id)
-        tool_resources = assistant.get("tool_resources", {})
-
-        # Update 'code_interpreter' tool
-        if "code_interpreter" not in tool_resources:
-            tool_resources["code_interpreter"] = {}
-        if "file_ids" not in tool_resources["code_interpreter"]:
-            tool_resources["code_interpreter"]["file_ids"] = []
-        tool_resources["code_interpreter"]["file_ids"].extend(file_ids)
-
-        # Similarly, update 'file_search' tool if used
-        if "file_search" in tool_resources:
-            if "file_ids" not in tool_resources["file_search"]:
-                tool_resources["file_search"]["file_ids"] = []
-            tool_resources["file_search"]["file_ids"].extend(file_ids)
-
-        # Update the Assistant with new tool_resources
-        updated_assistant = openai.beta.assistants.modify(
+        openai.beta.assistants.modify(
             assistant_id,
-            tool_resources=tool_resources
+            file_ids=[file_ids]
         )
         logging.info(f"Assistant '{assistant_id}' tool_resources updated with {len(file_ids)} files.")
     except Exception as e:
