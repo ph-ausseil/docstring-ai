@@ -44,7 +44,7 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
     Update the Assistant's tool_resources with the uploaded file IDs.
     """
     try:
-        openai.beta.assistants.modify(
+        openai.beta.assistants.update(
             assistant_id,
             file_ids=[file_ids]
         )

@@ -106,7 +106,7 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
         try:
             # Upload the file to OpenAI
             with open(file_path, "rb") as f:
-                response = openai.File.create(
+                response = openai.files.create(
                     file=f,
                     purpose= "assistants"
                 )

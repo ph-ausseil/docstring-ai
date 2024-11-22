@@ -1,22 +1,11 @@
-import os
+
 import openai
-import argparse
 import time
-import json
 import ast
-import chromadb
-from chromadb.config import Settings
-from chromadb.utils import embedding_functions
-import tiktoken
 from typing import List, Dict
-import hashlib
-from dotenv import load_dotenv
-from datetime import datetime
-from github import Github, GithubException
-import subprocess
-import sys
 import logging
-import difflib
+from docstring_ai import RETRY_BACKOFF
+from docstring_ai.lib.prompt_utils import extract_code_from_message
 
 
 def extract_description_from_docstrings(code_with_docstrings: str) -> str:
@@ -65,30 +54,26 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
     """
     try:
         # Create a Run with context
-        run = openai.Run.create(
+        run = openai.beta.threads.messages.create(
             thread_id=thread_id,
-            assistant_id=assistant_id,
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
+            role=  "user",
+            content= (
                         f"{context}\n\n"
                         "Please add appropriate docstrings to the following Python code. "
                         "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
                         "```python\n"
                         f"{code}\n"
                         "```"
-                    )
-                }
-            ],
-            max_prompt_tokens=5000,  # Adjust as needed
-            max_completion_tokens=5000  # Adjust as needed
+                    ),
         )
         logging.info(f"Run created with ID: {run['id']} for Thread: {thread_id}")
 
         # Poll for Run completion
         while True:
-            current_run = openai.Run.retrieve(run['id'])
+            current_run = openai.threads.runs.create(
+                thread_id=thread_id,
+                assistant_id=assistant_id,
+            )
             status = current_run['status']
             if status == 'completed':
                 logging.info(f"Run {run['id']} completed.")
