@@ -54,7 +54,7 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
     """
     try:
         # Create a Run with context
-        run = openai.beta.threads.messages.create(
+        message = openai.beta.threads.messages.create(
             thread_id=thread_id,
             role=  "user",
             content= (
@@ -66,7 +66,7 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
                         "```"
                     ),
         )
-        logging.info(f"Run created with ID: {run.id} for Thread: {thread_id}")
+        logging.info(f"Message created with ID: {message.id} for Thread: {thread_id}")
 
         # Poll for Run completion
         while True:
@@ -86,7 +86,10 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
                 time.sleep(RETRY_BACKOFF)
 
         # Retrieve the assistant's response
-        thread = openai.Thread.retrieve(thread_id)
+        thread = openai.threads.runs.retrieve(
+            thread_id=thread_id,
+            run_id=current_run.id
+            )
         messages = thread.get('messages', [])
         if not messages:
             logging.error(f"No messages found in Thread: {thread_id}")
