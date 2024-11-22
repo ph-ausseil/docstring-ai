@@ -64,12 +64,12 @@ def create_thread(api_key: str, assistant_id: str, initial_messages: List[dict] 
     """
     try:
         payload = {
-            "assistant_id": assistant_id,
+            #"assistant_id": assistant_id,
             "messages": initial_messages if initial_messages else []
         }
         thread = openai.beta.threads.create(**payload)
-        logging.info(f"Thread created with ID: {thread['id']}")
-        return thread['id']
+        logging.info(f"Thread created with ID: {thread.id}")
+        return thread.id
     except Exception as e:
         logging.error(f"Error creating Thread: {e}")
         return None
