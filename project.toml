@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "docstring-ai"
+version = "0.1.0"
+description = "Add docstrings to Python files in a repository using OpenAI Assistants API and ChromaDB with caching."
+authors = ["Pierre-Henri AUsSEIL <ph.ausseil@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.scripts]
+docstring-ai = "docstring_ai.__main__:main"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+openai = "^0.27.0"           
+chromadb = "^0.3.21"         
+tiktoken = "^0.4.0"          
+python-dotenv = "^1.0.0"     
+
+[tool.poetry.dev-dependencies]
+black = "^23.1.0"             
+flake8 = "^6.0.0"   
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
