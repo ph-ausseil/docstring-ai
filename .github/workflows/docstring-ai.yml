@@ -1,0 +1,22 @@
+name: Docstring-AI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  add-docstrings:
+    if: "!contains(github.event.head_commit.message, '[Docstring-AI]')" 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.11'
+      - name: Install Docstring-AI
+        run: pip install docstring-ai
+      - name: Run Docstring-AI
+        run: docstring-ai --path=./ --api_key ${{ secrets.OPENAI_API_KEY }}
+
