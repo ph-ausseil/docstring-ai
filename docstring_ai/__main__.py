@@ -51,7 +51,7 @@ from docstring_ai.lib.utils import (
     sort_files_by_size,
     prompt_user_confirmation,
 )
-from docstring_ai.lib.prompt_utils import add_docstrings_to_code
+from docstring_ai.lib.prompt_utils import add_docstrings
 
 # Load environment variables from .env file
 load_dotenv()

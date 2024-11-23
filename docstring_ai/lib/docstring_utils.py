@@ -7,7 +7,7 @@ the OpenAI API and LOG errors encountered during execution.
 Functions:
 - extract_description_from_docstrings: Extracts simple descriptions from docstrings in the given code.
 - extract_class_docstring: Extracts the docstring of a specified class from the code.
-- add_docstrings_to_code: Sends code to the OpenAI Assistant to add appropriate docstrings.
+- add_docstrings: Sends code to the OpenAI Assistant to add appropriate docstrings.
 - parse_classes: Parses a Python file to extract a dictionary of classes and their parent classes.
 """
 
