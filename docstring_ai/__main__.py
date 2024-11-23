@@ -34,7 +34,7 @@ from datetime import datetime
 from github import Github, GithubException
 import subprocess
 import sys
-from docstring_ai.lib.logger import logging, LOG, show_file_progress
+from docstring_ai.lib.logger import logging, show_file_progress
 import difflib
 from docstring_ai.lib.docstring_utils import (
     parse_classes,
@@ -55,7 +55,7 @@ from docstring_ai.lib.prompt_utils import add_docstrings
 
 # Load environment variables from .env file
 load_dotenv()
-LOG.setLevel(logging.DEBUG)
+logging.setLevel(logging.DEBUG)
 
 def main():
     """
@@ -87,6 +87,7 @@ def main():
     parser.add_argument("--pr-depth", type=int, default=2, help="Depth level for creating PRs per folder. Default is 2.")
     parser.add_argument("--manual", action="store_true", help="Enable manual validation circuits for review.")
     parser.add_argument("--help-flags", action="store_true", help="List and describe all available flags.")
+    parser.add_argument("--no-cache", help="Not-implemented : Execute the script without cached value.")
 
     # Parse arguments
     args = parser.parse_args()

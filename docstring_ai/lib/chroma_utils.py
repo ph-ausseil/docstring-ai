@@ -1,6 +1,6 @@
 import os
 import openai
-from docstring_ai.lib.logger import LOG, show_file_progress
+from docstring_ai.lib.logger import show_file_progress
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
@@ -47,7 +47,7 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
     
     for collection in existing_collections:
         if collection.name == collection_name:
-            LOG.info(f"ChromaDB Collection '{collection_name}' found.")
+            logging.info(f"ChromaDB Collection '{collection_name}' found.")
             return client.get_collection(
                 name=collection_name,
                 embedding_function=embedding_functions.OpenAIEmbeddingFunction(
@@ -56,7 +56,7 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
                 )
             )
     
-    LOG.info(f"ChromaDB Collection '{collection_name}' not found. Creating a new one.")
+    logging.info(f"ChromaDB Collection '{collection_name}' not found. Creating a new one.")
     collection = client.create_collection(
         name=collection_name,
         embedding_function=embedding_functions.OpenAIEmbeddingFunction(
@@ -91,9 +91,9 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
             ids.append(doc_id)
             documents.append(content)
             metadatas.append({"file_path": file_path})
-            LOG.info(f"Prepared file for embedding: {file_path}")
+            logging.info(f"Prepared file for embedding: {file_path}")
         except Exception as e:
-            LOG.error(f"Error reading file {file_path}: {e}")
+            logging.error(f"Error reading file {file_path}: {e}")
 
     # Add to ChromaDB
     try:
@@ -102,9 +102,9 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
             ids=ids,
             metadatas=metadatas
         )
-        LOG.info(f"Embedded and stored {len(ids)} files in ChromaDB.")
+        logging.info(f"Embedded and stored {len(ids)} files in ChromaDB.")
     except Exception as e:
-        LOG.error(f"Error adding documents to ChromaDB: {e}")
+        logging.error(f"Error adding documents to ChromaDB: {e}")
 
 
 def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, List[str]], max_tokens: int) -> str:
@@ -137,7 +137,7 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
         for doc in results['documents'][0]:
             doc_tokens = len(encoder.encode(doc))
             if token_count + doc_tokens > max_tokens:
-                LOG.info("Reached maximum token limit for context.")
+                logging.info("Reached maximum token limit for context.")
                 return context
             context += doc + "\n\n"
             token_count += doc_tokens
@@ -171,6 +171,6 @@ def store_class_summary(collection: chromadb.Collection, file_path: str, class_n
             ids=[doc_id],
             metadatas=[{"file_path": file_path, "class_name": class_name}]
         )
-        LOG.info(f"Stored summary for class '{class_name}' in ChromaDB.")
+        logging.info(f"Stored summary for class '{class_name}' in ChromaDB.")
     except Exception as e:
-        LOG.error(f"Error storing class summary for '{class_name}': {e}")
+        logging.error(f"Error storing class summary for '{class_name}': {e}")
