@@ -69,12 +69,16 @@ def main():
     The main function that serves as the entry point of the script.
 
     This function sets up the command-line interface for configuring the 
-    process of adding docstrings to Python files, handles user input and 
-    validations, and orchestrates the docstring generation and GitHub 
-    integration process.
+    process of adding docstrings to Python files. It handles user input, 
+    performs validations, and orchestrates the docstring generation and 
+    GitHub integration process.
 
-    It accepts arguments related to file paths, OpenAI API key, GitHub 
-    repository information, and other configuration options for PR creation.
+    It accepts command-line arguments related to file paths, OpenAI API key, 
+    GitHub repository information, and other configuration options for 
+    creating pull requests.
+
+    Raises:
+        SystemExit: If there are errors in argument parsing or invalid input.
     """
     parser = argparse.ArgumentParser(
         description="Automate adding docstrings to Python files and integrate with GitHub for PR creation."
@@ -161,4 +165,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
