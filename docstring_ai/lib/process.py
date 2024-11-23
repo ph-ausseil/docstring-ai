@@ -5,6 +5,7 @@ embeds the files in ChromaDB, and integrates with GitHub for pull request creati
 Functions:
 - process_files_and_create_prs: Processes Python files, adds docstrings, and creates pull requests.
 """
+
 import json
 import os
 import logging
@@ -29,7 +30,9 @@ from docstring_ai.lib.prompt_utils import (
     initialize_assistant,
     update_assistant_tool_resources,
     create_thread,
-    construct_few_shot_prompt
+    construct_few_shot_prompt,
+    get_file_description,
+    add_docstrings_to_code,
 )
 from docstring_ai.lib.chroma_utils import (
     initialize_chroma,
@@ -39,7 +42,6 @@ from docstring_ai.lib.chroma_utils import (
     store_class_summary
 )
 from docstring_ai.lib.docstring_utils import (
-    add_docstrings_to_code,
     parse_classes,
     extract_class_docstring,
     extract_description_from_docstrings
@@ -204,7 +206,7 @@ def process_files_and_create_prs(
         few_shot_prompt = construct_few_shot_prompt(collection, classes, max_tokens=MAX_TOKENS)
 
         # Add docstrings using Assistant's API
-        modified_code = add_docstrings_to_code(api_key, assistant_id, thread_id, original_code, few_shot_prompt)
+        modified_code = add_docstrings_to_code(assistant_id, thread_id, original_code, few_shot_prompt)
 
         if modified_code and modified_code != original_code:
             # Show diff and ask for validation if manual flag is enabled
@@ -229,12 +231,14 @@ def process_files_and_create_prs(
                     f.write(modified_code)
                 logging.info(f"Updated docstrings in {file_path}")
 
-                # Extract description from docstrings
-                description = extract_description_from_docstrings(modified_code)
-                context_summary.append({
-                    "file": os.path.relpath(file_path, repo_path),
-                    "description": description
-                })
+                # **New Step: Get Detailed File Description Using Assistant's API**
+                logging.info(f"Generating detailed description for {file_path}...")
+                file_description = get_file_description(
+                    assistant_id, 
+                    thread_id, 
+                    modified_code)
+                logging.info(f"Description for {file_path}: {file_description}")
+
 
                 # Parse classes again to extract summaries
                 modified_classes = parse_classes(file_path)

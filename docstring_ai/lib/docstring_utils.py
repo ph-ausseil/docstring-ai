@@ -36,6 +36,7 @@ def extract_description_from_docstrings(code_with_docstrings: str) -> str:
     Raises:
         Exception: If there is an error while parsing the code.
     """
+    logging.warning("Deprecated function : extract_description_from_docstrings , replaced by get_file_description")
     descriptions = []
     try:
         tree = ast.parse(code_with_docstrings)
@@ -43,10 +44,7 @@ def extract_description_from_docstrings(code_with_docstrings: str) -> str:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)):
                 doc = ast.get_docstring(node)
                 if doc:
-                    if isinstance(node, ast.Module):
-                        name = "module"
-                    else:
-                        name = node.name
+                    name = "module" if isinstance(node, ast.Module) else node.name
                     first_line = doc.strip().split('\n')[0]
                     descriptions.append(f"{name}: {first_line}")
     except Exception as e:
@@ -77,121 +75,21 @@ def extract_class_docstring(code: str, class_name: str) -> str:
         logging.error(f"Error extracting docstring for class '{class_name}': {e}")
     return ""
 
-def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code: str, context: str) -> str:
-    """
-    Sends code along with few-shot examples to the OpenAI Assistant to add docstrings.
-
-    Args:
-        api_key (str): The API key for OpenAI.
-        assistant_id (str): The ID of the assistant to use for the operation.
-        thread_id (str): The ID of the thread for the conversation.
-        code (str): The Python code for which docstrings need to be added.
-        context (str): Contextual information or examples for the assistant.
-
-    Returns:
-        str: The modified code with added docstrings, or None if an error occurs.
-
-    Raises:
-        Exception: If there is an error during the interaction with the OpenAI API.
-    """
-    try:
-        # Escape triple backticks in the original code to prevent interference
-        escaped_code = code.replace('```', '` ``')
-        # Add a message to the thread
-        message = openai.beta.threads.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=(
-                f"{context}\n\n"
-                "Please add appropriate docstrings to the following Python code. "
-                "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
-                "```python\n"
-                f"{escaped_code}\n"
-                "```"
-            ),
-        )
-        logging.info(f"Message created with ID: {message.id} for Thread: {thread_id}")
-
-        # Create a Run for the message
-        run = openai.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=assistant_id,
-        )
-        logging.info(f"Run created with ID: {run.id} for Thread: {thread_id}")
-
-        # Poll for Run completion
-        while True:
-            current_run = openai.beta.threads.runs.retrieve(
-                run_id=run.id,
-                thread_id=thread_id
-                )
-            status = current_run.status
-            if status == 'completed':
-                logging.info(f"Run {run.id} completed.")
-                break
-            elif status in ['failed', 'expired', 'cancelled']:
-                logging.error(f"Run {run.id} ended with status: {status}")
-                return None
-            else:
-                logging.info(f"Run {run.id} status: {status}. Waiting for completion...")
-                time.sleep(RETRY_BACKOFF)
-
-        # Retrieve the assistant's response
-        thread = openai.beta.threads.retrieve(thread_id=thread_id)
-        thread_messages = openai.beta.threads.messages.list(
-            thread_id=thread_id,
-            order="asc")
-        messages = thread_messages.data
-        if not messages:
-            logging.error(f"No messages found in Thread: {thread_id}")
-            return None
-
-        # Assuming the last message is the assistant's response
-        assistant_message = messages[-1].content
-        if not assistant_message:
-            logging.error("Assistant's message is empty.")
-            return None
-
-        # Extract code block from assistant's message
-        modified_code = extract_code_from_message(assistant_message)
-        # Revert the escaped backticks to original
-        final_code = modified_code.replace('` ``', '```')
-        return modified_code
-    except Exception as e:
-        logging.error(f"Error during docstring addition: {e}")
-        return None
-
-        # Retrieve the assistant's response
-        thread = openai.beta.threads.runs.retrieve(
-            thread_id=thread_id,
-            run_id=current_run.id
-            )
-        thread_messages = openai.beta.threads.messages.list(thread_id=thread_id)
-        messages = thread_messages.data
-        if not messages:
-            logging.error(f"No messages found in Thread: {thread_id}")
-            return None
-
-        # Assuming the last message is the assistant's response
-        assistant_message = messages[-1].content
-        if not assistant_message:
-            logging.error("Assistant's message is empty.")
-            return None
-
-        # Extract code block from assistant's message
-        modified_code = extract_code_from_message(assistant_message)
-        # Revert the escaped backticks to original
-        final_code = modified_code.replace('` ``', '```')
-        return final_code
-    except Exception as e:
-        logging.error(f"Error during docstring addition: {e}")
-        return None
-
-
 def parse_classes(file_path: str) -> Dict[str, List[str]]:
     """
     Parse a Python file and return a dictionary of classes and their parent classes.
-    Example: {'ClassA': ['BaseClass1', 'BaseClass2'], ...}
+
+    This function reads a Python file and uses the Abstract Syntax Tree (AST) to
+    identify classes and their inherited parent classes.
+
+    Args:
+        file_path (str): The path to the Python file to be parsed.
+
+    Returns:
+        Dict[str, List[str]]: A dictionary where keys are class names and values are lists of parent classes.
+
+    Raises:
+        Exception: If there is an error during file reading or parsing.
     """
     classes = {}
     try:

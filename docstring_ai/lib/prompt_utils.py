@@ -12,13 +12,13 @@ Functions:
 - generate_few_shot_examples: Generates few-shot examples based on context.
 - extract_code_from_message: Extracts code blocks from the assistant's messages.
 """
-
+import time
 import openai
 import chromadb
 from docstring_ai.lib.chroma_utils import get_relevant_context
 import logging
 from typing import List, Dict
-from docstring_ai.lib.config import MODEL
+from docstring_ai.lib.config import MODEL , RETRY_BACKOFF
 
 
 def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant") -> str:
@@ -70,7 +70,7 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
 
 def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: List[str]) -> None:
     """
-    Update the Assistant's tool_resources with the uploaded file IDs.
+    Update the Assistant's tool resources with the uploaded file IDs.
 
     This function creates a vector store for the files and updates the assistant's
     tool resources to include the new vector store.
@@ -182,6 +182,18 @@ def generate_few_shot_examples(context: str) -> str:
 def extract_code_from_message(message: str) -> str:
     """
     Extracts the code block from the assistant's message.
+
+    This function uses a regular expression to find and extract code blocks
+    formatted in a specific way from the assistant's message.
+
+    Args:
+        message (str): The assistant's message string containing the code block.
+
+    Returns:
+        str: The extracted code block.
+
+    Raises:
+        Exception: If no code block is found in the assistant's response.
     """
     import re
     code_pattern = re.compile(r"```python\n([\s\S]*?)```")
@@ -191,3 +203,211 @@ def extract_code_from_message(message: str) -> str:
     else:
         raise Exception("No code block found in the assistant's response.")
 
+
+def get_file_description(assistant_id : str, thread_id: str, file_content: str) -> str:
+    """
+    Sends the entire file content to the Assistant and retrieves a detailed description of the file.
+    
+    Args:
+        assistant: The OpenAI Assistant object.
+        thread_id (str): The ID of the thread to use for interaction.
+        file_content (str): The complete content of the Python file.
+        
+    Returns:
+        str: A detailed description of the file.
+    """
+    prompt = (
+        "Provide a comprehensive & detailed description of the following Python file. "
+        "Highlight its main functionalities, purpose, classes, and function constructors. "
+        "Include any important details that would help understand the purpose, functionality, context, structure and intent of the code.\n\n"
+        f"{file_content}"
+    )
+    
+    try:
+        message = openai.beta.threads.messages.create(
+            thread_id=thread_id,
+            role="user",
+            content=prompt,
+        )
+       # Poll for Run completion
+        while True:
+            current_run = openai.beta.threads.runs.retrieve(
+                run_id=run.id,
+                thread_id=thread_id
+            )
+            status = current_run.status
+            if status == 'completed':
+                logging.info(f"Run {run.id} completed.")
+                break
+            elif status in ['failed', 'expired', 'cancelled']:
+                logging.error(f"Run {run.id} ended with status: {status}")
+                return None
+            else:
+                logging.info(f"Run {run.id} status: {status}. Waiting for completion...")
+                time.sleep(RETRY_BACKOFF)
+
+        # Retrieve the assistant's response
+        thread = openai.beta.threads.retrieve(thread_id=thread_id)
+        thread_messages = openai.beta.threads.messages.list(
+            thread_id=thread_id,
+            order="asc")
+        messages = thread_messages.data
+        if not messages:
+            logging.error(f"No messages found in Thread: {thread_id}")
+            return "Description unavailable due to missing response."
+
+
+        # Assuming the last message is the assistant's response
+        assistant_message = messages[-1].content
+        if not messages:
+            logging.error(f"No messages found in Thread: {thread_id}")
+            return "Description unavailable due to missing response."
+
+        # Extract code block from assistant's message
+        modified_code = extract_code_from_message(assistant_message)
+        # Revert the escaped backticks to original
+        final_code = modified_code.replace('` ``', '```')
+        return modified_code
+    except Exception as e:
+        logging.error(f"Error during docstring addition: {e}")
+        return None
+
+        # Retrieve the assistant's response
+        thread = openai.beta.threads.runs.retrieve(
+            thread_id=thread_id,
+            run_id=current_run.id
+            )
+        thread_messages = openai.beta.threads.messages.list(thread_id=thread_id)
+        messages = thread_messages.data
+        if not messages:
+            logging.error(f"No messages found in Thread: {thread_id}")
+            return "Description unavailable due to missing response."
+
+        # Assuming the last message is the assistant's response
+        assistant_message = messages[-1].content
+        if not assistant_message:
+            logging.error("Assistant's message is empty.")
+            return "Description unavailable due to empty response."
+
+        # Extract code block from assistant's message
+        modified_code = extract_code_from_message(assistant_message)
+        # Revert the escaped backticks to original
+        final_code = modified_code.replace('` ``', '```')
+        return final_code
+    except Exception as e:
+        logging.error(f"Error during docstring addition: {e}")
+        return "Description unavailable due to an API error."
+
+
+def add_docstrings_to_code( assistant_id: str, thread_id: str, code: str, context: str) -> str:
+    """
+    Sends code along with few-shot examples to the OpenAI Assistant to add docstrings.
+
+    This function interacts with the OpenAI API to send the Python code and contextual examples,
+    waits for the assistant's response, and returns the code with added docstrings.
+
+    Args:
+        api_key (str): The API key for OpenAI.
+        assistant_id (str): The ID of the assistant to use for the operation.
+        thread_id (str): The ID of the thread for the conversation.
+        code (str): The Python code for which docstrings need to be added.
+        context (str): Contextual information or examples for the assistant.
+
+    Returns:
+        str: The modified code with added docstrings, or None if an error occurs.
+
+    Raises:
+        Exception: If there is an error during the interaction with the OpenAI API.
+    """
+    try:
+        # Escape triple backticks in the original code to prevent interference
+        escaped_code = code.replace('```', '` ``')
+        # Add a message to the thread
+        message = openai.beta.threads.messages.create(
+            thread_id=thread_id,
+            role="user",
+            content=(
+                f"{context}\n\n"
+                "Please add appropriate docstrings to the following Python code. "
+                "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
+                "```python\n"
+                f"{escaped_code}\n"
+                "```"
+            ),
+        )
+        logging.info(f"Message created with ID: {message.id} for Thread: {thread_id}")
+
+        # Create a Run for the message
+        run = openai.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+        )
+        logging.info(f"Run created with ID: {run.id} for Thread: {thread_id}")
+
+        # Poll for Run completion
+        while True:
+            current_run = openai.beta.threads.runs.retrieve(
+                run_id=run.id,
+                thread_id=thread_id
+            )
+            status = current_run.status
+            if status == 'completed':
+                logging.info(f"Run {run.id} completed.")
+                break
+            elif status in ['failed', 'expired', 'cancelled']:
+                logging.error(f"Run {run.id} ended with status: {status}")
+                return None
+            else:
+                logging.info(f"Run {run.id} status: {status}. Waiting for completion...")
+                time.sleep(RETRY_BACKOFF)
+
+        # Retrieve the assistant's response
+        thread = openai.beta.threads.retrieve(thread_id=thread_id)
+        thread_messages = openai.beta.threads.messages.list(
+            thread_id=thread_id,
+            order="asc")
+        messages = thread_messages.data
+        if not messages:
+            logging.error(f"No messages found in Thread: {thread_id}")
+            return None
+
+        # Assuming the last message is the assistant's response
+        assistant_message = messages[-1].content
+        if not assistant_message:
+            logging.error("Assistant's message is empty.")
+            return None
+
+        # Extract code block from assistant's message
+        modified_code = extract_code_from_message(assistant_message)
+        # Revert the escaped backticks to original
+        final_code = modified_code.replace('` ``', '```')
+        return modified_code
+    except Exception as e:
+        logging.error(f"Error during docstring addition: {e}")
+        return None
+
+        # Retrieve the assistant's response
+        thread = openai.beta.threads.runs.retrieve(
+            thread_id=thread_id,
+            run_id=current_run.id
+            )
+        thread_messages = openai.beta.threads.messages.list(thread_id=thread_id)
+        messages = thread_messages.data
+        if not messages:
+            logging.error(f"No messages found in Thread: {thread_id}")
+            return None
+
+        # Assuming the last message is the assistant's response
+        assistant_message = messages[-1].content
+        if not assistant_message:
+            logging.error("Assistant's message is empty.")
+            return None
+
+        # Extract code block from assistant's message
+        modified_code = extract_code_from_message(assistant_message)
+        # Revert the escaped backticks to original
+        final_code = modified_code.replace('` ``', '```')
+        return final_code
+    except Exception as e:
+        logging.error(f"Error during docstring addition: {e}")
+        return None
