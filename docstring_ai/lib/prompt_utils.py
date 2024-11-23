@@ -260,9 +260,10 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
     )
     if context:
         prompt = f"{context}\n\n" + prompt
+        
     try :
         response = send_message_to_assistant(assistant_id, thread_id, prompt)
-    except Exception e : 
+    except : 
         print(f"Issue parssing the message {response}")
         raise Exception(e)
 
