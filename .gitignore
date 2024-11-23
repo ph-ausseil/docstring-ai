@@ -164,3 +164,4 @@ cython_debug/
 .DS_Store
 docstring_cache.json
 .poetry/
+.bak
