@@ -8,7 +8,7 @@ Modules:
 - os: For file and environment operations.
 - openai: To interact with the OpenAI API.
 - chromadb: For embedding and storing code context.
-- logging: For logging messages and errors.
+- LOG: For LOG messages and errors.
 - datetime: For handling date and time operations.
 - subprocess: To run shell commands.
 - sys: For system-specific parameters and functions.
@@ -34,7 +34,7 @@ from datetime import datetime
 from github import Github, GithubException
 import subprocess
 import sys
-import logging
+from docstring_ai.lib.logger import LOG, show_file_progress
 import difflib
 from docstring_ai.lib.docstring_utils import (
     parse_classes,
@@ -55,14 +55,7 @@ from docstring_ai.lib.prompt_utils import add_docstrings_to_code
 
 # Load environment variables from .env file
 load_dotenv()
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d %(message)s',
-    handlers=[
-        logging.FileHandler("docstring_ai.log"),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+LOG.setLevel(LOG.DEBUG)
 
 def main():
     """
@@ -70,7 +63,7 @@ def main():
 
     This function sets up the command-line interface for configuring the 
     process of adding docstrings to Python files. It handles user input, 
-    performs validations, and orchestrates the docstring generation and 
+    validates arguments, and orchestrates the docstring generation and 
     GitHub integration process.
 
     It accepts command-line arguments related to file paths, OpenAI API key, 

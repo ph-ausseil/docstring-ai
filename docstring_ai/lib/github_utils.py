@@ -14,7 +14,7 @@ from datetime import datetime
 from github import Github, GithubException
 import subprocess
 import sys
-import logging
+from docstring_ai.lib.logger import LOG, show_file_progress
 import difflib
 
 def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch_name: str, pr_name: str) -> None:
@@ -48,11 +48,11 @@ def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch
 
         try:
             repo.get_git_ref(ref)
-            logging.info(f"Branch '{branch_name}' already exists.")
+            LOG.info(f"Branch '{branch_name}' already exists.")
         except GithubException as e:
             if e.status == 404:
                 repo.create_git_ref(ref=ref, sha=source.commit.sha)
-                logging.info(f"Branch '{branch_name}' created.")
+                LOG.info(f"Branch '{branch_name}' created.")
             else:
                 raise e
 
@@ -74,13 +74,13 @@ def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch
             head=branch_name,
             base=default_branch
         )
-        logging.info(f"Pull Request created: {pr.html_url}")
+        LOG.info(f"Pull Request created: {pr.html_url}")
     except GithubException as e:
-        logging.error(f"GitHub API error: {e.data['message']}")
+        LOG.error(f"GitHub API error: {e.data['message']}")
     except subprocess.CalledProcessError as e:
-        logging.error(f"Git command failed: {e}")
+        LOG.error(f"Git command failed: {e}")
     except Exception as e:
-        logging.error(f"Error creating GitHub PR: {e}")
+        LOG.error(f"Error creating GitHub PR: {e}")
 
 def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: str) -> None:
     """
@@ -115,9 +115,9 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
             ["git", "-C", repo_path, "push", "-u", "origin", branch_name],
             check=True
         )
-        logging.info(f"Changes committed and pushed to branch '{branch_name}'.")
+        LOG.info(f"Changes committed and pushed to branch '{branch_name}'.")
     except subprocess.CalledProcessError as e:
-        logging.error(f"Git command failed: {e}")
+        LOG.error(f"Git command failed: {e}")
         raise e
 
 def get_changed_files(repo_path: str) -> List[str]:
@@ -146,8 +146,8 @@ def get_changed_files(repo_path: str) -> List[str]:
         )
         changed_files = result.stdout.strip().split('\n')
         changed_files = [file for file in changed_files if file.endswith('.py')]
-        logging.info(f"Changed Python files: {changed_files}")
+        LOG.info(f"Changed Python files: {changed_files}")
         return changed_files
     except subprocess.CalledProcessError as e:
-        logging.error(f"Git command failed while retrieving changed files: {e}")
+        LOG.error(f"Git command failed while retrieving changed files: {e}")
         return []

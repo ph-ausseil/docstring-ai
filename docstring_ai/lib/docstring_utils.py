@@ -2,7 +2,7 @@
 This module provides functions to extract descriptions from docstrings,
 add docstrings to Python code using OpenAI’s Assistant, and parse
 Python classes from a file. It includes utilities for interacting with
-the OpenAI API and logging errors encountered during execution.
+the OpenAI API and LOG errors encountered during execution.
 
 Functions:
 - extract_description_from_docstrings: Extracts simple descriptions from docstrings in the given code.
@@ -15,7 +15,7 @@ import openai
 import time
 import ast
 from typing import List, Dict
-import logging
+from docstring_ai.lib.logger import LOG, show_file_progress
 from docstring_ai import RETRY_BACKOFF
 from docstring_ai.lib.prompt_utils import extract_code_from_message
 
@@ -36,7 +36,7 @@ def extract_description_from_docstrings(code_with_docstrings: str) -> str:
     Raises:
         Exception: If there is an error while parsing the code or extracting descriptions.
     """
-    logging.warning("Deprecated function: extract_description_from_docstrings, replaced by get_file_description")
+    LOG.warning("Deprecated function: extract_description_from_docstrings, replaced by get_file_description")
     descriptions = []
     try:
         tree = ast.parse(code_with_docstrings)
@@ -48,7 +48,7 @@ def extract_description_from_docstrings(code_with_docstrings: str) -> str:
                     first_line = doc.strip().split('\n')[0]
                     descriptions.append(f"{name}: {first_line}")
     except Exception as e:
-        logging.error(f"Error parsing code for description: {e}")
+        LOG.error(f"Error parsing code for description: {e}")
     return "; ".join(descriptions)
 
 def extract_class_docstring(code: str, class_name: str) -> str:
@@ -75,7 +75,7 @@ def extract_class_docstring(code: str, class_name: str) -> str:
                 doc = ast.get_docstring(node)
                 return doc
     except Exception as e:
-        logging.error(f"Error extracting docstring for class '{class_name}': {e}")
+        LOG.error(f"Error extracting docstring for class '{class_name}': {e}")
     return ""
 
 def parse_classes(file_path: str) -> Dict[str, List[str]]:
@@ -102,11 +102,12 @@ def parse_classes(file_path: str) -> Dict[str, List[str]]:
             tree = ast.parse(f.read(), filename=file_path)
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
-                parent_classes = [base.id if isinstance(base, ast.Name) else
-                                  base.attr if isinstance(base, ast.Attribute) else
-                                  "Unknown" for base in node.bases]
+                parent_classes = [
+                    base.id if isinstance(base, ast.Name) else
+                    base.attr if isinstance(base, ast.Attribute) else
+                    "Unknown" for base in node.bases
+                ]
                 classes[node.name] = parent_classes
     except Exception as e:
-        logging.error(f"Error parsing classes in {file_path}: {e}")
+        LOG.error(f"Error parsing classes in {file_path}: {e}")
     return classes
-

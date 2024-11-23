@@ -33,6 +33,7 @@ from docstring_ai.lib.prompt_utils import (
     construct_few_shot_prompt,
     get_file_description,
     add_docstrings_to_code,
+    get_file_description
 )
 from docstring_ai.lib.chroma_utils import (
     initialize_chroma,
@@ -47,8 +48,7 @@ from docstring_ai.lib.docstring_utils import (
     extract_description_from_docstrings
 )
 from docstring_ai.lib.github_utils import create_github_pr
-from docstring_ai import MAX_TOKENS, CHROMA_COLLECTION_NAME, CACHE_FILE_NAME
-
+from docstring_ai import MAX_TOKENS, CHROMA_COLLECTION_NAME, CACHE_FILE_NAME, CONTEXT_SUMMARY_PATH
 
 def process_files_and_create_prs(
     repo_path: str, 
@@ -101,6 +101,20 @@ def process_files_and_create_prs(
     # Load cache
     cache_path = os.path.join(repo_path, CACHE_FILE_NAME)
     cache = load_cache(cache_path)
+
+    # Load Context Summary
+    context_summary_full_path = os.path.join(repo_path, CONTEXT_SUMMARY_PATH)
+    if os.path.exists(context_summary_full_path):
+        try:
+            with open(context_summary_full_path, 'r', encoding='utf-8') as f:
+                context_summary = json.load(f)
+            logging.info(f"Loaded context summary with {len(context_summary)} entries.")
+        except Exception as e:
+            logging.error(f"Error loading context summary: {e}")
+            context_summary = []
+    else:
+        logging.info(f"No existing context summary found at '{context_summary_full_path}'. Starting fresh.")
+        context_summary = []
 
     # Step 1: Retrieve all Python files
     python_files = get_python_files(repo_path)
@@ -182,10 +196,10 @@ def process_files_and_create_prs(
 
     # Step 9: Process Each Python File for Docstrings
     logging.info("\nProcessing Python files to add docstrings...")
-    context_summary = []
     for idx, file_path in enumerate(files_to_process, 1):
         logging.info(f"\nProcessing file {idx}/{len(files_to_process)}: {file_path}")
         try:
+            relative_path = os.path.relpath(file_path, repo_path)
             with open(file_path, 'r', encoding='utf-8') as f:
                 original_code = f.read()
         except Exception as e:
@@ -205,8 +219,33 @@ def process_files_and_create_prs(
         # Construct few-shot prompt
         few_shot_prompt = construct_few_shot_prompt(collection, classes, max_tokens=MAX_TOKENS)
 
+        # Check if file is cached and has existing description
+        cached_entry = next((item for item in context_summary if item["file"] == relative_path), None)
+        if cached_entry:
+            file_description = cached_entry.get("description", "")
+            logging.info(f"Using cached description for {file_path}.")
+        else:
+            # **New Step: Get Detailed File Description Using Assistant's API**
+            logging.info(f"Generating detailed description for {file_path}...")
+            file_description = get_file_description(
+                assistant_id=assistant_id,  # Modify as needed if using assistant objects
+                thread_id=thread_id, 
+                file_content=original_code
+            )
+            logging.info(f"Description for {file_path}: {file_description}")
+            # Append to context_summary for future use
+            context_summary.append({
+                "file": relative_path,
+                "description": file_description
+            })
+
         # Add docstrings using Assistant's API
-        modified_code = add_docstrings_to_code(assistant_id, thread_id, original_code, few_shot_prompt)
+        modified_code = add_docstrings_to_code(
+            assistant_id=assistant_id,
+            thread_id=thread_id,
+            code=original_code,
+            context=few_shot_prompt
+        )
 
         if modified_code and modified_code != original_code:
             # Show diff and ask for validation if manual flag is enabled
@@ -231,28 +270,40 @@ def process_files_and_create_prs(
                     f.write(modified_code)
                 logging.info(f"Updated docstrings in {file_path}")
 
-                # **New Step: Get Detailed File Description Using Assistant's API**
-                logging.info(f"Generating detailed description for {file_path}...")
-                file_description = get_file_description(
-                    assistant_id, 
-                    thread_id, 
-                    modified_code)
-                logging.info(f"Description for {file_path}: {file_description}")
+                # **New Step: Get Detailed File Description After Adding Docstrings**
+                logging.info(f"Generating updated description for {file_path} after adding docstrings...")
+                updated_file_description = get_file_description(
+                    assistant=None,  # Modify as needed if using assistant objects
+                    thread_id=thread_id, 
+                    file_content=modified_code
+                )
+                logging.info(f"Updated description for {file_path}: {updated_file_description}")
 
+                # Update context_summary with the updated description
+                if cached_entry:
+                    # Update existing entry
+                    cached_entry["description"] = updated_file_description
+                    logging.info(f"Updated cached description for {file_path}.")
+                else:
+                    # Append new entry
+                    context_summary.append({
+                        "file": relative_path,
+                        "description": updated_file_description
+                    })
 
-                # Parse classes again to extract summaries
+                # Update cache with new hash
+                new_hash = compute_sha256(file_path)
+                cache[relative_path] = new_hash
+                logging.info(f"Updated cache for file: {file_path}")
+
+                # Store class summaries if any
                 modified_classes = parse_classes(file_path)
                 for class_name in modified_classes.keys():
                     # Extract the docstring for each class
                     class_docstring = extract_class_docstring(modified_code, class_name)
                     if class_docstring:
                         summary = class_docstring.strip().split('\n')[0]  # First line as summary
-                        store_class_summary(collection, os.path.relpath(file_path, repo_path), class_name, summary)
-
-                # Update cache with new hash
-                new_hash = compute_sha256(file_path)
-                cache[os.path.relpath(file_path, repo_path)] = new_hash
-                logging.info(f"Updated cache for file: {file_path}")
+                        store_class_summary(collection, relative_path, class_name, summary)
 
             except Exception as e:
                 logging.error(f"Error updating file {file_path}: {e}")
@@ -260,14 +311,13 @@ def process_files_and_create_prs(
             logging.info(f"No changes made to {file_path}.")
             # Update cache even if no changes to prevent reprocessing unchanged files
             current_hash = compute_sha256(file_path)
-            cache[os.path.relpath(file_path, repo_path)] = current_hash
+            cache[relative_path] = current_hash
 
     # Step 10: Save Context Summary
-    context_summary_path = os.path.join(repo_path, "context_summary.json")
     try:
-        with open(context_summary_path, "w", encoding='utf-8') as f:
+        with open(context_summary_full_path, "w", encoding='utf-8') as f:
             json.dump(context_summary, f, indent=2)
-        logging.info(f"\nDocstring generation completed. Context summary saved to '{context_summary_path}'.")
+        logging.info(f"\nDocstring generation completed. Context summary saved to '{context_summary_full_path}'.")
     except Exception as e:
         logging.error(f"Error saving context summary: {e}")
 

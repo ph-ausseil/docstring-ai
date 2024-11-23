@@ -182,25 +182,20 @@ def extract_code_from_message(message: str) -> str:
     else:
         print(message[-1].text.value)
         raise Exception("No code block found in the assistant's response.")
+import logging
 
-def get_file_description(assistant_id: str, thread_id: str, file_content: str) -> str:
+def send_message_to_assistant(assistant_id: str, thread_id: str, prompt: str) -> str:
     """
-    Sends the entire file content to the Assistant and retrieves a detailed description of the file.
-    
+    Sends a prompt to the Assistant and retrieves the response.
+
     Args:
-        assistant: The OpenAI Assistant object.
-        thread_id (str): The ID of the thread to use for interaction.
-        file_content (str): The complete content of the Python file.
-        
+        assistant_id (str): The ID of the Assistant.
+        thread_id (str): The ID of the thread for communication.
+        prompt (str): The prompt or content to send to the Assistant.
+
     Returns:
-        str: A detailed description of the file.
+        str: The Assistant's response text, or an error message if an issue occurs.
     """
-    prompt = (
-        "Provide a comprehensive & detailed description of the following Python file. "
-        "Highlight its main functionalities, purpose, classes, and function constructors. "
-        "Include any important details that would help understand the purpose, functionality, context, structure, and intent of the code.\n\n"
-        f"{file_content}"
-    )
     try:
         message = openai.beta.threads.messages.create(
             thread_id=thread_id,
@@ -213,60 +208,58 @@ def get_file_description(assistant_id: str, thread_id: str, file_content: str) -
         )
         if poll_run_completion(run.id, thread_id):
             return retrieve_last_assistant_message(thread_id)[-1].text.value
-        return "Description unavailable due to failed run."
+        return "Operation failed due to incomplete run."
     except Exception as e:
-        logging.error(f"Error during file description retrieval: {e}")
-        return "Description unavailable due to an API error."
+        logging.error(f"Error during interaction with Assistant: {e}")
+        return "Operation failed due to an API error."
 
-
-def add_docstrings_to_code(assistant_id: str, thread_id: str, code: str, context: str) -> str:
+def generate_file_description(assistant_id: str, thread_id: str, file_content: str) -> str:
     """
-    Sends code along with few-shot examples to the OpenAI Assistant to add docstrings.
-
-    This function interacts with the OpenAI API to send the Python code and contextual examples,
-    waits for the assistant's response, and returns the code with added docstrings.
+    Generates a detailed description of a Python file using the Assistant.
 
     Args:
-        api_key (str): The API key for OpenAI.
-        assistant_id (str): The ID of the assistant to use for the operation.
-        thread_id (str): The ID of the thread for the conversation.
-        code (str): The Python code for which docstrings need to be added.
-        context (str): Contextual information or examples for the assistant.
+        assistant_id (str): The ID of the Assistant.
+        thread_id (str): The ID of the thread for communication.
+        file_content (str): The content of the Python file.
 
     Returns:
-        str: The modified code with added docstrings, or None if an error occurs.
-
-    Raises:
-        Exception: If there is an error during the interaction with the OpenAI API.
+        str: A detailed description of the file.
     """
-    try:
-        # Escape triple backticks in the original code to prevent interference
-        escaped_code = code.replace('```', '` ``')
-        prompt = (
-            f"{context}\n\n"
-            "Please add appropriate docstrings to the following Python code. "
-            "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
-            "```python\n"
-            f"{escaped_code}\n"
-            "```"
-        )
-        message = openai.beta.threads.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=prompt,
-        )
-        run = openai.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=assistant_id,
-        )
-        if poll_run_completion(run.id, thread_id):
-            modified_code = retrieve_last_assistant_message(thread_id)
-            
-            return extract_code_from_message(modified_code).replace('` ``', '```') if modified_code else None
-        return None
-    except Exception as e:
-        logging.error(f"Error during docstring addition: {e}")
-        return None
+    prompt = (
+        "Provide a comprehensive & detailed description of the following Python file. "
+        "Highlight its main functionalities, purpose, classes, and function constructors. "
+        "Include any important details that would help understand the purpose, functionality, context, structure, and intent of the code.\n\n"
+        f"{file_content}"
+    )
+    return send_message_to_assistant(assistant_id, thread_id, prompt)
+
+def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -> str:
+    """
+    Adds docstrings to Python code using the Assistant.
+
+    Args:
+        assistant_id (str): The ID of the Assistant.
+        thread_id (str): The ID of the thread for communication.
+        code (str): The Python code to process.
+        context (str): Contextual examples or instructions for generating docstrings.
+
+    Returns:
+        str: The code with added docstrings, or None if an error occurs.
+    """
+    escaped_code = code.replace('```', '` ``')
+    prompt = (
+        f"{context}\n\n"
+        "Please add appropriate docstrings to the following Python code. "
+        "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
+        "```python\n"
+        f"{escaped_code}\n"
+        "```"
+    )
+    response = send_message_to_assistant(assistant_id, thread_id, prompt)
+    if response:
+        return extract_code_from_message(response).replace('` ``', '```')
+    return None
+
 
 # Utility Functions
 

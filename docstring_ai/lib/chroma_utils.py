@@ -1,6 +1,6 @@
 import os
 import openai
-import logging
+from docstring_ai.lib.logger import LOG, show_file_progress
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
@@ -47,7 +47,7 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
     
     for collection in existing_collections:
         if collection.name == collection_name:
-            logging.info(f"ChromaDB Collection '{collection_name}' found.")
+            LOG.info(f"ChromaDB Collection '{collection_name}' found.")
             return client.get_collection(
                 name=collection_name,
                 embedding_function=embedding_functions.OpenAIEmbeddingFunction(
@@ -55,7 +55,8 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
                     model_name=EMBEDDING_MODEL
                 )
             )
-    logging.info(f"ChromaDB Collection '{collection_name}' not found. Creating a new one.")
+    
+    LOG.info(f"ChromaDB Collection '{collection_name}' not found. Creating a new one.")
     collection = client.create_collection(
         name=collection_name,
         embedding_function=embedding_functions.OpenAIEmbeddingFunction(
@@ -67,7 +68,7 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
 
 
 def embed_and_store_files(collection: chromadb.Collection, python_files: List[str]) -> None:
-    """Embed each Python file and store in ChromaDB.
+    """Embed each Python file and store it in ChromaDB.
 
     This function reads the contents of each specified Python file, embeds the content,
     and stores the embedded representations in the ChromaDB collection.
@@ -90,9 +91,9 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
             ids.append(doc_id)
             documents.append(content)
             metadatas.append({"file_path": file_path})
-            logging.info(f"Prepared file for embedding: {file_path}")
+            LOG.info(f"Prepared file for embedding: {file_path}")
         except Exception as e:
-            logging.error(f"Error reading file {file_path}: {e}")
+            LOG.error(f"Error reading file {file_path}: {e}")
 
     # Add to ChromaDB
     try:
@@ -101,9 +102,9 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
             ids=ids,
             metadatas=metadatas
         )
-        logging.info(f"Embedded and stored {len(ids)} files in ChromaDB.")
+        LOG.info(f"Embedded and stored {len(ids)} files in ChromaDB.")
     except Exception as e:
-        logging.error(f"Error adding documents to ChromaDB: {e}")
+        LOG.error(f"Error adding documents to ChromaDB: {e}")
 
 
 def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, List[str]], max_tokens: int) -> str:
@@ -136,7 +137,7 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
         for doc in results['documents'][0]:
             doc_tokens = len(encoder.encode(doc))
             if token_count + doc_tokens > max_tokens:
-                logging.info("Reached maximum token limit for context.")
+                LOG.info("Reached maximum token limit for context.")
                 return context
             context += doc + "\n\n"
             token_count += doc_tokens
@@ -145,7 +146,7 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
 
 def store_class_summary(collection: chromadb.Collection, file_path: str, class_name: str, summary: str) -> None:
     """
-    Stores the class summary in ChromaDB for future context.
+    Store the class summary in ChromaDB for future context.
 
     This function embeds the provided summary for a specific class and stores it 
     in the specified ChromaDB collection, associating it with the respective 
@@ -170,6 +171,6 @@ def store_class_summary(collection: chromadb.Collection, file_path: str, class_n
             ids=[doc_id],
             metadatas=[{"file_path": file_path, "class_name": class_name}]
         )
-        logging.info(f"Stored summary for class '{class_name}' in ChromaDB.")
+        LOG.info(f"Stored summary for class '{class_name}' in ChromaDB.")
     except Exception as e:
-        logging.error(f"Error storing class summary for '{class_name}': {e}")
+        LOG.error(f"Error storing class summary for '{class_name}': {e}")
