@@ -5,7 +5,7 @@ embeds the files in ChromaDB, and integrates with GitHub for pull request creati
 Functions:
 - process_files_and_create_prs: Processes Python files, adds docstrings, and creates pull requests.
 """
-
+import json
 import os
 import logging
 import openai
