@@ -213,7 +213,7 @@ def process_files_and_create_prs(
         else:
             # Retrieve relevant context summaries from ChromaDB
             context = get_relevant_context(collection, classes, max_tokens=MAX_TOKENS // 2)  # Allocate half tokens to context
-            logging.info(f"Retrieved context with {len(tiktoken.get_encoding('gpt4o').encode(context))} tokens.")
+            logging.info(f"Retrieved context with {len(tiktoken.get_encoding('gpt4').encode(context))} tokens.")
 
         # Construct few-shot prompt
         few_shot_prompt = construct_few_shot_prompt(collection, classes, max_tokens=MAX_TOKENS)
