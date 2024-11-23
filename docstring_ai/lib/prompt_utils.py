@@ -342,7 +342,7 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
 
     print(f"#######################\n")
     print(f"role:{thread_messages[-1].role}\n")
-    print(f"create_at:{thread_messages[-1].create_at}\n")
+    print(f"create_at:{thread_messages[-1].created_at}\n")
     print(f"status:{thread_messages[-1].status}\n\n")
 
     try:
@@ -351,7 +351,7 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
         for message in thread_messages:
             print(f"#######################\n")
             print(f"role:{message.role}\n")
-            print(f"create_at:{message.create_at}\n")
+            print(f"create_at:{message.created_at}\n")
             print(f"status:{message.status}\n")
     return thread_messages[-1].content
 
