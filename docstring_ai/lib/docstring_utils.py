@@ -99,6 +99,11 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
         if not messages:
             logging.error(f"No messages found in Thread: {thread_id}")
             return None
+        else : 
+            print("\n\n!!!!!!!!!!!!!!!!!!\n\n")
+            print(f"Filepath:{file_path}\n\n")
+            print(f"modified_code:{modified_code[-100]}")
+            print("\n\n@@@@@@@@@@@@@@@n\n")
 
         # Assuming the last message is the assistant's response
         assistant_message = messages[-1].content

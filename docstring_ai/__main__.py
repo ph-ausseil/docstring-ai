@@ -36,7 +36,7 @@ from docstring_ai.lib.utils import (
 # Load environment variables from .env file
 load_dotenv()
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO + 1,
     format='%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d %(message)s',
     handlers=[
         logging.FileHandler("docstring_ai.log"),
