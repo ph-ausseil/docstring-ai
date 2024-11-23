@@ -6,6 +6,7 @@ import tiktoken
 from docstring_ai.lib.utils import (
     check_git_repo,
     has_uncommitted_changes,
+    file_has_uncommitted_changes,
     load_cache,
     save_cache,
     get_python_files,
@@ -176,8 +177,12 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
                     continue  # Skip applying changes
 
             try:
-                # Backup original file if Git is not present or if there are uncommitted changes
-                if not git_present or uncommitted_changes:
+                # Backup original file only if needed
+                if not git_present:
+                    # No Git: Always create a backup
+                    create_backup(file_path)
+                elif git_present and file_has_uncommitted_changes(repo_path, file_path):
+                    # Git is present: Backup if the file has uncommitted changes
                     create_backup(file_path)
 
                 # if manual:
@@ -188,9 +193,9 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
                             
                 print("\n\n!!!!!!!!!!!!!!!!!!\n\n")
                 print(f"Filepath:{file_path}\n\n")
-                print(f"modified_code:{modified_code[-100]}")
+                print(f"modified_code:{modified_code}")
                 print("\n\n@@@@@@@@@@@@@@@n\n")
-                continue
+
                 # Update the file with modified code
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(modified_code)
@@ -224,9 +229,6 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
             # Update cache even if no changes to prevent reprocessing unchanged files
             current_hash = compute_sha256(file_path)
             cache[os.path.relpath(file_path, repo_path)] = current_hash
-
-        if idx > 5 :
-            exit("ixd > 5")
 
     # Step 10: Save Context Summary
     context_summary_path = os.path.join(repo_path, "context_summary.json")

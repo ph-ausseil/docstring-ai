@@ -18,6 +18,25 @@ import logging
 import difflib
 
 
+def file_has_uncommitted_changes(repo_path: str, file_path: str) -> bool:
+    """
+    Checks if the specific file has uncommitted changes in the Git repository.
+    Returns True if there are uncommitted changes for the file, False otherwise.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", repo_path, "diff", "--name-only"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        changed_files = result.stdout.strip().split('\n')
+        return os.path.relpath(file_path, repo_path) in changed_files
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Git command failed while checking uncommitted changes for {file_path}: {e}")
+        return False
+
 
 def prompt_user_confirmation(message: str) -> bool:
     """
