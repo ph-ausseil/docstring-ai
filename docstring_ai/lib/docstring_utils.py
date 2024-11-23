@@ -77,7 +77,10 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
 
         # Poll for Run completion
         while True:
-            current_run = openai.beta.threads.runs.retrieve(run.id)
+            current_run = openai.beta.threads.runs.retrieve(
+                run_id=run.id,
+                thread_id=thread_id
+                )
             status = current_run['status']
             if status == 'completed':
                 logging.info(f"Run {run.id} completed.")

@@ -44,11 +44,15 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
     Update the Assistant's tool_resources with the uploaded file IDs.
     """
     try:
+        vector_store = openai.beta.vector_stores.create(name=f"Docsting-AI::{assistant_id}")
+        vector_store_file_batch = openai.beta.vector_stores.file_batches.create( 
+            vector_store_id=vector_store.id,
+            file_ids=file_ids)
         openai.beta.assistants.update(
             assistant_id=assistant_id,
             tool_resources={
                 "file_search": {
-                    "file_ids": file_ids
+                    "vector_store_ids": [vector_store.id]
                     }
             }
         )
