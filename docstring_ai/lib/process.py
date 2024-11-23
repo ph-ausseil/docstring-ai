@@ -185,7 +185,12 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
                     if not prompt_user_confirmation(f"Do you want to apply changes to {file_path}?"):
                         logging.info(f"Changes for {file_path} were not applied by the user.")
                         continue
-
+                            
+                print("\n\n!!!!!!!!!!!!!!!!!!\n\n")
+                print(f"Filepath:{file_path}\n\n")
+                print(f"modified_code:{modified_code[-100]}")
+                print("\n\n@@@@@@@@@@@@@@@n\n")
+                continue
                 # Update the file with modified code
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(modified_code)
