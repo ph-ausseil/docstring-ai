@@ -103,7 +103,7 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
             print("\n\n!!!!!!!!!!!!!!!!!!\n\n")
             print(f"if not messages:{len(messages)}\n\n")
             for i, message in enumerate(messages):
-                print(f"Extract #{i}:{message[-100:])}\n\n")
+                print(f"Extract #{i}:{message[-100:]}\n\n")
             print("\n\n@@@@@@@@@@@@@@@n\n")
 
         # Assuming the last message is the assistant's response
