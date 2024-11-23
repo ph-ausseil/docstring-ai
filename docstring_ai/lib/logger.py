@@ -1,7 +1,8 @@
 import json
-from docstring_ai.lib.logger import LOG, show_file_progress
-from docstring_ai.lib.logger import LOG, show_file_progress.config
-from docstring_ai.lib.logger import LOG, show_file_progress.handlers
+import inspect
+import logging
+import logging.config
+import logging.handlers
 import os
 from pathlib import Path
 import queue
@@ -9,9 +10,6 @@ import threading
 import time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from tqdm import tqdm
-from functools import wraps
-import time  # For simulation, remove in actual use
 
 # Load the .env file
 load_dotenv()
@@ -22,30 +20,30 @@ TRACE = 5
 NOTICE = 15
 DB_LOG = 18
 MINOR_INFO = NOTICE - 1
-MAJOR_INFO = LOG.INFO + 1 
+MAJOR_INFO = logging.INFO + 1 
 DEV_NOTE = MINOR_INFO - 1
 CHAT = 29
 
-LOG.addLevelName(TRACE, "TRACE")
-LOG.addLevelName(DB_LOG, "DB_LOG")
-LOG.addLevelName(NOTICE, "NOTICE")
-LOG.addLevelName(MINOR_INFO , "MINOR_INFO")
-LOG.addLevelName(MAJOR_INFO, "MAJOR_INFO")
-LOG.addLevelName(DEV_NOTE, "DEV_NOTE")
-LOG.addLevelName(CHAT, "CHAT")
+logging.addLevelName(TRACE, "TRACE")
+logging.addLevelName(DB_LOG, "DB_LOG")
+logging.addLevelName(NOTICE, "NOTICE")
+logging.addLevelName(MINOR_INFO , "MINOR_INFO")
+logging.addLevelName(MAJOR_INFO, "MAJOR_INFO")
+logging.addLevelName(DEV_NOTE, "DEV_NOTE")
+logging.addLevelName(CHAT, "CHAT")
 
 if os.environ.get("PYTEST_RUN", "false").lower() == "true":
-    CONSOLE_LOG_LEVEL = LOG.getLevelName(
+    CONSOLE_LOG_LEVEL = logging.getLevelName(
         os.getenv("PYTEST_CONSOLE_LOG_LEVEL", "ERROR").upper()
     )
-    FILE_LOG_LEVEL = LOG.getLevelName(
+    FILE_LOG_LEVEL = logging.getLevelName(
         os.getenv("PYTEST_FILE_LOG_LEVEL", "ERROR").upper()
     )
 else:
-    CONSOLE_LOG_LEVEL = LOG.getLevelName(
+    CONSOLE_LOG_LEVEL = logging.getLevelName(
         os.getenv("CONSOLE_LOG_LEVEL", "INFO").upper()
     )
-    FILE_LOG_LEVEL = LOG.getLevelName(os.getenv("FILE_LOG_LEVEL", "DEBUG").upper())
+    FILE_LOG_LEVEL = logging.getLevelName(os.getenv("FILE_LOG_LEVEL", "DEBUG").upper())
 
 AFAAS_BASE_PATH = Path(".").resolve()
 RESET_SEQ: str = "\033[0m"
@@ -107,7 +105,7 @@ class SafeJsonEncoder(json.JSONEncoder):
         except TypeError:
             return str(obj)
 
-class JsonFormatter(LOG.Formatter):
+class JsonFormatter(logging.Formatter):
     """Formats log records as JSON strings, handling non-serializable objects."""
     def format(self, record):
         record_dict = record.__dict__.copy()
@@ -168,7 +166,7 @@ def friendly_path(path, max_length=30, min_length=20):
     return result
 
 
-class ConsoleFormatter(LOG.Formatter):
+class ConsoleFormatter(logging.Formatter):
     """
     Custom formatter that adds colors and emojis to log messages.
     """
@@ -179,7 +177,7 @@ class ConsoleFormatter(LOG.Formatter):
         self.use_color = use_color
 
 
-    def format(self, record: LOG.LogRecord) -> str:
+    def format(self, record: logging.LogRecord) -> str:
         """
         Formats and enhances log records with colors and emojis.
         """
@@ -195,7 +193,7 @@ class ConsoleFormatter(LOG.Formatter):
         rec.name = f"{GREY}{friendly_path(path = rec.pathname, max_length = 30, min_length = 15)}"
         rec.msg = current_color + EMOJIS[levelname] + " " + str(rec.msg)
 
-        message = LOG.Formatter.format(self, rec)
+        message = logging.Formatter.format(self, rec)
 
         # Optionally reinstate color after each reset
         if self.use_color:
@@ -223,9 +221,9 @@ class SingletonMeta(type):
                 cls._instances[cls] = instance
         return cls._instances[cls]
 
-class AFAASLogger(LOG.Logger, metaclass=SingletonMeta):
+class AFAASLogger(logging.Logger, metaclass=SingletonMeta):
     """
-    Custom logger that adds extra LOG functions and a heartbeat mechanism.
+    Custom logger that adds extra logging functions and a heartbeat mechanism.
     """
     LOG_FILENAME = "debug.log"
     DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -310,7 +308,7 @@ class AFAASLogger(LOG.Logger, metaclass=SingletonMeta):
                         + ("..." if len(msg) > self.MAX_TASK_LENGTH else "")
                     )
         except Exception as e:
-            # Handle any exceptions within the LOG process
+            # Handle any exceptions within the logging process
             super().error(f"Error in custom log method: {e}")
 
     def chat(self, role: str, openai_repsonse: dict, messages=None, *args, **kws):
@@ -376,17 +374,17 @@ class AFAASLogger(LOG.Logger, metaclass=SingletonMeta):
         """
         return ITALIC_SEQ + msg + RESET_SEQ
 
-class QueueLogger(LOG.Logger):
+class QueueLogger(logging.Logger):
     """
     Custom logger class with queue.
     """
-    def __init__(self, name: str, level: int = LOG.NOTSET):
+    def __init__(self, name: str, level: int = logging.NOTSET):
         super().__init__(name, level)
-        queue_handler = LOG.handlers.QueueHandler(queue.Queue(-1))
+        queue_handler = logging.handlers.QueueHandler(queue.Queue(-1))
         self.addHandler(queue_handler)
 
 
-class PathFilter(LOG.Filter):
+class PathFilter(logging.Filter):
     """
     Filter log records based on the file path of the log source.
     """
@@ -406,13 +404,13 @@ class PathFilter(LOG.Filter):
         return str(record_path).startswith(str(self.base_path))
 
 
-LOG.setLoggerClass(AFAASLogger)
+logging.setLoggerClass(AFAASLogger)
 def setup_logger():
-    logger = LOG.getLogger("AFAAS")
+    logger = logging.getLogger("AFAAS")
     logger.setLevel(CONSOLE_LOG_LEVEL)
 
     # Console Handler
-    console_handler = LOG.StreamHandler()
+    console_handler = logging.StreamHandler()
     if JSON_LOGGING:
         console_formatter = JsonFormatter()
     else:
@@ -424,13 +422,13 @@ def setup_logger():
     logger.addHandler(console_handler)
 
     # File Handler
-    file_handler = LOG.handlers.TimedRotatingFileHandler(
+    file_handler = logging.handlers.TimedRotatingFileHandler(
         AFAASLogger.LOG_FILENAME, when="midnight", interval=1, backupCount=7
     )
     if JSON_LOGGING:
         file_formatter = JsonFormatter()
     else:
-        file_formatter = LOG.Formatter(AFAASLogger.FORMAT)
+        file_formatter = logging.Formatter(AFAASLogger.FORMAT)
     file_handler.setFormatter(file_formatter)
     file_handler.setLevel(FILE_LOG_LEVEL)
 
@@ -447,8 +445,12 @@ def setup_logger():
 LOG = setup_logger()
 
 # Log initial debug messages
-LOG.debug(f"Console log level is  : {LOG.getLevelName(CONSOLE_LOG_LEVEL)}")
-LOG.debug(f"File log level is  : {LOG.getLevelName(FILE_LOG_LEVEL)}")
+LOG.debug(f"Console log level is  : {logging.getLevelName(CONSOLE_LOG_LEVEL)}")
+LOG.debug(f"File log level is  : {logging.getLevelName(FILE_LOG_LEVEL)}")
+
+from tqdm import tqdm
+from functools import wraps
+import time  # For simulation, remove in actual use
 
 def show_file_progress(desc="Processing files", **kwargs):
     """
