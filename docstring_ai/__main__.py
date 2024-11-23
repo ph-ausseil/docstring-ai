@@ -34,7 +34,7 @@ from datetime import datetime
 from github import Github, GithubException
 import subprocess
 import sys
-from docstring_ai.lib.logger import LOG, show_file_progress
+from docstring_ai.lib.logger import logging, LOG, show_file_progress
 import difflib
 from docstring_ai.lib.docstring_utils import (
     parse_classes,
@@ -55,7 +55,7 @@ from docstring_ai.lib.prompt_utils import add_docstrings
 
 # Load environment variables from .env file
 load_dotenv()
-LOG.setLevel(LOG.DEBUG)
+LOG.setLevel(logging.DEBUG)
 
 def main():
     """
