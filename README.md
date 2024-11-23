@@ -201,26 +201,25 @@ When the `--manual` flag is enabled, Docstring-AI introduces an interactive revi
    - **Description**: Establish the foundational features that enable Docstring-AI to traverse Python repositories, generate docstrings using OpenAI's Assistants API, manage context with ChromaDB, and implement a SHA-256 caching mechanism to optimize performance.
    - **Current Status**: Completed.
 
-### 2. **Man-in-the-Middle Validation with Diff Preview**
-   - **Description**: Introduce an interactive layer that allows developers to **preview and validate changes** before they are committed to the codebase. This feature displays diffs of proposed docstring additions, ensuring that all modifications meet quality standards.
-   - **Planned Features**:
-     - Generate diffs between original and modified files.
-     - Provide a user-friendly interface for approving or rejecting changes.
-     - Ensure code integrity by allowing manual oversight of AI-generated documentation.
-
-### 3. **PyPI Module**
+### 2. **PyPI Module**
    - **Description**: Distribute Docstring-AI as a **PyPI package**, allowing developers to install and use it effortlessly within their projects. This makes it accessible for both local and global installations, facilitating seamless integration into various development environments.
-   - **Planned Features**:
-     - Installable via `pip install docstring-ai`.
-     - Command-line interface (CLI) for flexible usage.
-     - Comprehensive documentation and usage guides for easy adoption.
 
-### 4. **GitHub Action Package**
+### 3. **GitHub Action Package**
    - **Description**: Package Docstring-AI as a **GitHub Action** to automate docstring generation within your CI/CD pipeline. This integration ensures that every commit or pull request is automatically documented, maintaining consistent and up-to-date documentation across the repository.
-   - **Planned Features**:
-     - Easy setup via `.github/workflows` configuration.
-     - Automatic execution on specified triggers (e.g., push, pull_request).
-     - Actionable logs and reports on docstring additions and modifications.
+
+### 4. **Implementation of Structured Output or OpenAI Toolcall** : 
+   - **Description**: For structured output
+
+### 5. **Granularity**
+   - **Description**: Leveraging Structured Outputs , choose which docstring to generate : Modules, Classes, Functions & Constants levels
+
+### 6. **Console improvements** : 
+   - **Description**: Use of the tdmq wrapper & enhance the logging class
+
+### 6. **Integrate with target GitHub repo** : 
+   - **Description**: If the target repo is a GitHub repo
+      - Detect the repo to use
+      - Raise an alert if different repo is passed via .env or args
 
 ---
 
