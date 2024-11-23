@@ -2,7 +2,7 @@
 This module provides functions to extract descriptions from docstrings,
 add docstrings to Python code using OpenAI’s Assistant, and parse
 Python classes from a file. It includes utilities for interacting with
-the OpenAI API and LOG errors encountered during execution.
+the OpenAI API and logging errors encountered during execution.
 
 Functions:
 - extract_description_from_docstrings: Extracts simple descriptions from docstrings in the given code.
@@ -21,7 +21,7 @@ from docstring_ai.lib.prompt_utils import extract_code_from_message
 
 def extract_description_from_docstrings(code_with_docstrings: str) -> str:
     """
-    Extracts a simple description from docstrings in the provided code.
+    Extracts simple descriptions from docstrings in the provided code.
 
     This function parses the code and retrieves the first line of docstrings
     for each function, class, and module, returning them in a formatted string.
