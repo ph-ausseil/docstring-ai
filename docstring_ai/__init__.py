@@ -11,6 +11,7 @@ Constants:
     RETRY_BACKOFF (int): The time, in seconds, to wait before retrying after a failed API request.
     CHROMA_COLLECTION_NAME (str): The name of the ChromaDB collection used to store context data.
     CACHE_FILE_NAME (str): The name of the file used for caching purposes.
+    CONTEXT_SUMMARY_PATH (str): The path for storing context summaries.
 """
 
 from .lib.config import (
@@ -20,6 +21,6 @@ from .lib.config import (
     MAX_RETRIES,  # int: The maximum number of retry attempts for API requests.
     RETRY_BACKOFF,  # int: The time, in seconds, to wait before retrying after a failed API request.
     CHROMA_COLLECTION_NAME,  # str: The name of the ChromaDB collection used to store context data.
-    CACHE_FILE_NAME, # str: The name of the file used for caching purposes.
-    CONTEXT_SUMMARY_PATH
+    CACHE_FILE_NAME,  # str: The name of the file used for caching purposes.
+    CONTEXT_SUMMARY_PATH  # str: The path for storing context summaries.
 )

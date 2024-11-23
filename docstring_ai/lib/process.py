@@ -272,7 +272,7 @@ def process_files_and_create_prs(
                 # **New Step: Get Detailed File Description After Adding Docstrings**
                 logging.info(f"Generating updated description for {file_path} after adding docstrings...")
                 updated_file_description = generate_file_description(
-                    assistant=None,  # Modify as needed if using assistant objects
+                    assistant_id=assistant_id,  # Modify as needed if using assistant objects
                     thread_id=thread_id, 
                     file_content=modified_code
                 )

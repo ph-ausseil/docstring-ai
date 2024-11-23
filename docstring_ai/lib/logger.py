@@ -263,10 +263,10 @@ class AFAASLogger(logging.Logger, metaclass=SingletonMeta):
 
     def start_status_updater(self, interval=10):
         """Start the status updater thread."""
-        if not self.status_thread_running:
-            self.status_thread_running = True
-            self.status_thread = threading.Thread(target=self._status_updater, args=(interval,), daemon=True)
-            self.status_thread.start()
+        # if not self.status_thread_running:
+        #     self.status_thread_running = True
+        #     self.status_thread = threading.Thread(target=self._status_updater, args=(interval,), daemon=True)
+        #     self.status_thread.start()
 
     def _status_updater(self, interval):
         """Log periodic status updates if no new log messages have been made."""

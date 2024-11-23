@@ -2,7 +2,7 @@
 
 MODEL = "gpt-4o-mini"  
 """
-str: The name of the model to be used for processing.
+str: The name of the model to be used for processing tasks.
 
 This constant specifies which version of the model will be employed for inference and processing tasks. 
 It can be replaced with the appropriate model name based on the specific use case or model availability.
@@ -63,3 +63,10 @@ data retrievals, thereby reducing latency and improving responsiveness of operat
 """
 
 CONTEXT_SUMMARY_PATH = "context_summary.json"
+"""
+str: The path for storing context summaries.
+
+This constant specifies the file path where context summaries are stored, enabling easy retrieval and 
+management of context data for subsequent processing tasks. It ensures that important context information 
+is preserved and can be accessed when needed.
+"""
