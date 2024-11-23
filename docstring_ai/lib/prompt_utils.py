@@ -110,9 +110,6 @@ def extract_code_from_message(message: str) -> str:
     Extracts the code block from the assistant's message.
     """
     import re
-    print("\n\n###############\n\n")
-    print(message[-1].text.value)
-    print("\n\n@@@@@@@@@@@@@@@n\n")
     code_pattern = re.compile(r"```python\n([\s\S]*?)```")
     match = code_pattern.search(message[-1].text.value)
     if match:
