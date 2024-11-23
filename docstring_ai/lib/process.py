@@ -180,11 +180,11 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
                 if not git_present or uncommitted_changes:
                     create_backup(file_path)
 
-                if manual:
-                    # Ask for confirmation before applying changes
-                    if not prompt_user_confirmation(f"Do you want to apply changes to {file_path}?"):
-                        logging.info(f"Changes for {file_path} were not applied by the user.")
-                        continue
+                # if manual:
+                #     # Ask for confirmation before applying changes
+                #     if not prompt_user_confirmation(f"Do you want to apply changes to {file_path}?"):
+                #         logging.info(f"Changes for {file_path} were not applied by the user.")
+                #         continue
                             
                 print("\n\n!!!!!!!!!!!!!!!!!!\n\n")
                 print(f"Filepath:{file_path}\n\n")
