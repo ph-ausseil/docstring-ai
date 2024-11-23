@@ -8,6 +8,7 @@ Functions:
 
 import json
 import os
+from pathlib import Path
 import logging
 from docstring_ai.lib.logger import show_file_progress
 import openai
@@ -77,8 +78,8 @@ def process_files_and_create_prs(
 
     3. **Embedding and Assistant Setup**
     Step 7: Embed selected Python files into ChromaDB for efficient context storage.
-    Step 8: Initialize an OpenAI Assistant instance for docstring generation.
     Step 9: `upload_files_to_openai` - Upload files to OpenAI and update the Assistant's resources.
+    Step 8: Initialize an OpenAI Assistant instance for docstring generation.
     Step 10: Create a new OpenAI thread for interaction and processing.
 
     4. **Docstring Generation and Processing**
@@ -109,16 +110,18 @@ def process_files_and_create_prs(
         Exception: Various exceptions may occur during file processing, API calls,
                     or Git operations, which are logged accordingly.
     """
-    last_modified_code = ""
+    ###
+    ### INITIATE
+    ###
     openai.api_key = api_key
 
     # Check if Git is present
     git_present = check_git_repo(repo_path)
 
     # Check for uncommitted changes if Git is present
-    uncommitted_changes = False
-    if git_present:
-        uncommitted_changes = has_uncommitted_changes(repo_path)
+    # uncommitted_changes = False
+    # if git_present:
+    #     uncommitted_changes = has_uncommitted_changes(repo_path)
 
     # Initialize ChromaDB
     logging.info("\nInitializing ChromaDB...")
@@ -128,20 +131,6 @@ def process_files_and_create_prs(
     # Load cache
     cache_path = os.path.join(repo_path, CACHE_FILE_NAME)
     cache = load_cache(cache_path)
-
-    # Load Context Summary
-    context_summary_full_path = os.path.join(repo_path, CONTEXT_SUMMARY_PATH)
-    if os.path.exists(context_summary_full_path):
-        try:
-            with open(context_summary_full_path, 'r', encoding='utf-8') as f:
-                context_summary = json.load(f)
-            logging.info(f"Loaded context summary with {len(context_summary)} entries.")
-        except Exception as e:
-            logging.error(f"Error loading context summary: {e}")
-            context_summary = []
-    else:
-        logging.info(f"No existing context summary found at '{context_summary_full_path}'. Starting fresh.")
-        context_summary = []
 
     # Step 1: Retrieve all Python files
     python_files = get_python_files(repo_path)
@@ -168,6 +157,21 @@ def process_files_and_create_prs(
     logging.info("\nTraversing repository to categorize folders based on pr_depth...")
     folder_dict = traverse_repo(repo_path, pr_depth)
     logging.info(f"Found {len(folder_dict)} depth levels up to {pr_depth}.")
+    
+    ###
+    ### EMBED
+    ###
+
+    # Load Context Summary
+    context_summary_full_path = os.path.join(repo_path, CONTEXT_SUMMARY_PATH)
+    if os.path.exists(context_summary_full_path):
+        try:
+            with open(context_summary_full_path, 'r', encoding='utf-8') as f:
+                context_summary = json.load(f)
+            logging.info(f"Loaded context summary with {len(context_summary)} entries.")
+        except Exception as e:
+            logging.error(f"Error loading context summary: {e}")
+            context_summary = []
 
     # Step 5: Embed and store files in ChromaDB
     logging.info("\nEmbedding and storing Python files in ChromaDB...")
@@ -181,6 +185,9 @@ def process_files_and_create_prs(
         logging.error("No files were successfully uploaded to OpenAI. Exiting.")
         return
 
+    ###
+    ### START ASSISTANT 
+    ###
     # Step 7: Initialize Assistant
     logging.info("\nInitializing Assistant...")
     assistant_id = initialize_assistant(api_key)
@@ -198,6 +205,40 @@ def process_files_and_create_prs(
         logging.error("Thread creation failed. Exiting.")
         return
 
+    # Step 9 : Create Missing Context 
+    file_descriptions_list = []
+    for file in files_to_process: 
+        if not any(entry["file"] == file for entry in context_summary) : 
+            logging.info(f"Generating detailed description for {file}...")
+            with open(file, 'r', encoding='utf-8') as f:
+                file_description = generate_file_description(
+                    assistant_id=assistant_id,
+                    thread_id=thread_id, 
+                    file_content=f.read()
+                )
+
+            # Create a file with descriptions
+            with open(Path('./data/') / Path(file_path) , 'w', encoding='utf-8') as f:
+                f.write(file_description)
+            file_descriptions_list.append(file_description)
+
+            context_summary.append({
+                "file": file,
+                "description": file_description
+            })
+            logging.info(f"Description for {file}: {file_description}")
+            # Append to context_summary for future use
+
+    # TODO: Add context to both vector stores
+    # Step 5: Embed and store files in ChromaDB
+    logging.info("\nEmbedding and storing Python files in ChromaDB...")
+    embed_and_store_files(collection, file_descriptions_list)
+
+    # Step 6: Upload files to OpenAI and update Assistant's tool resources
+    logging.info("\nUploading files to OpenAI...")
+    file_ids.extend(upload_files_to_openai(file_descriptions_list))
+    update_assistant_tool_resources(api_key, assistant_id, file_ids)
+ 
     # Step 9: Process Each Python File for Docstrings using the decorated function
     logging.info("\nProcessing Python files to add docstrings...")
     process_single_file(
@@ -258,7 +299,6 @@ def process_files_and_create_prs(
                     pr_name=folder_pr_name
                 )
 
-# Step 1: Extract the file processing into a separate function
 @show_file_progress(desc="Processing Python Files", leave=True)
 def process_single_file(
     file_path: str,
@@ -272,6 +312,42 @@ def process_single_file(
 ) -> None:
     """
     Processes a single Python file: adds docstrings, updates context, and handles caching.
+
+    **Steps:**
+
+    1. **File Reading and Initial Setup**
+       - Compute the file's relative path within the repository.
+       - Read the file content into memory.
+       - Log errors and skip processing if the file cannot be read.
+
+    2. **Class Parsing and Context Retrieval**
+       - Parse the file for class definitions and dependencies.
+       - If classes are found, retrieve relevant context summaries from ChromaDB to support docstring generation.
+
+    3. **Few-Shot Prompt Construction**
+       - Construct a few-shot prompt using the retrieved context and examples from the ChromaDB collection.
+
+    4. **File Description Generation**
+       - Check if the file's description is already cached.
+       - If not cached, generate a detailed file description using the OpenAI Assistant and append it to the context summary.
+
+    5. **Docstring Generation**
+       - Use the OpenAI Assistant to generate docstrings for the code, applying the few-shot prompt and contextual information.
+
+    6. **Manual Validation (Optional)**
+       - If `manual` is set to True, display the differences between the original and modified code for user approval before saving changes.
+
+    7. **File Update**
+       - Create a backup of the original file if Git is not present or if the file has uncommitted changes.
+       - Overwrite the file with the modified code containing the new docstrings.
+
+    8. **Context Summary and Cache Updates**
+       - Generate an updated file description after docstring addition.
+       - Update the cache with the new file hash to avoid reprocessing unchanged files.
+       - Update the context summary with the new description.
+
+    9. **Class Summaries**
+       - Extract and store summaries for any modified classes in the file.
 
     Args:
         file_path (str): The path to the Python file.
@@ -294,6 +370,12 @@ def process_single_file(
         logging.error(f"Error reading file {file_path}: {e}")
         return
 
+    # Check if file is cached and has existing description
+    cached_entry = next((item for item in context_summary if item["file"] == relative_path), None)
+    if cached_entry:
+        file_description = cached_entry.get("description", "")
+        logging.info(f"Using cached description for {file_path}.")
+
     # Parse classes and identify dependencies
     classes = parse_classes(file_path)
     if not classes:
@@ -305,27 +387,12 @@ def process_single_file(
         logging.info(f"Retrieved context with {len(tiktoken.get_encoding('gpt4').encode(context))} tokens.")
 
     # Construct few-shot prompt
-    few_shot_prompt = construct_few_shot_prompt(collection, classes, max_tokens=MAX_TOKENS)
-
-    # Check if file is cached and has existing description
-    cached_entry = next((item for item in context_summary if item["file"] == relative_path), None)
-    if cached_entry:
-        file_description = cached_entry.get("description", "")
-        logging.info(f"Using cached description for {file_path}.")
-    else:
-        # **New Step: Get Detailed File Description Using Assistant's API**
-        logging.info(f"Generating detailed description for {file_path}...")
-        file_description = generate_file_description(
-            assistant_id=assistant_id,
-            thread_id=thread_id, 
-            file_content=original_code
+    few_shot_prompt = construct_few_shot_prompt(
+        collection= collection, 
+        classes=classes, 
+        max_tokens=MAX_TOKENS,
+        context= context
         )
-        logging.info(f"Description for {file_path}: {file_description}")
-        # Append to context_summary for future use
-        context_summary.append({
-            "file": relative_path,
-            "description": file_description
-        })
 
     # Add docstrings using Assistant's API
     modified_code = add_docstrings(
@@ -409,54 +476,43 @@ def process_single_file(
         cache[relative_path] = current_hash
 
 @show_file_progress(desc="Checking file hashes", leave=True)
-def filter_files_by_hash(files, repo_path, cache):
+def filter_files_by_hash(file_path, repo_path, cache):
     """
-    Filters files based on SHA-256 hashes and cache.
+    Filters a single file based on SHA-256 hash and cache.
 
     Args:
-        files (list): List of file paths.
+        file_path (str): Path to the file.
         repo_path (str): Path to the repository.
         cache (dict): Dictionary storing file hashes.
 
     Returns:
-        list: List of files that need processing.
+        str: File path if it needs processing, otherwise None.
     """
-    files_to_process = []
-    for file_path in files:
-        current_hash = compute_sha256(file_path)
-        cached_hash = cache.get(os.path.relpath(file_path, repo_path))
-        if current_hash == cached_hash:
-            logging.info(f"Skipping unchanged file: {file_path}")
-        else:
-            files_to_process.append(file_path)
-    return files_to_process
+    current_hash = compute_sha256(file_path)
+    cached_hash = cache.get(os.path.relpath(file_path, repo_path))
+    if current_hash != cached_hash:
+        return file_path  # Return files that need processing
+    return None  # Skip unchanged files
+
 
 @show_file_progress(desc="Uploading files to OpenAI", leave=True)
-def upload_files_to_openai(files):
+def upload_files_to_openai(file_path):
     """
-    Uploads files to OpenAI and returns their file IDs.
+    Uploads a single file to OpenAI and returns the file ID.
 
     Args:
-        files (list): List of file paths.
+        file_path (str): Path to the file.
 
     Returns:
-        list: List of file IDs from OpenAI.
+        str: File ID from OpenAI or None on failure.
     """
-    file_ids = []
-    for file_path in files:
-        try:
-            # Upload the file to OpenAI
-            with open(file_path, "rb") as f:
-                response = openai.File.create(
-                    file=f,
-                    purpose="assistants"
-                )
-            file_id = response.id
-            if file_id:
-                file_ids.append(file_id)
-                logging.info(f"Uploaded {file_path} to OpenAI with file ID: {file_id}")
-            else:
-                logging.warning(f"Failed to retrieve file ID for {file_path}")
-        except Exception as e:
-            logging.error(f"Error uploading {file_path} to OpenAI: {e}")
-    return file_ids
+    try:
+        with open(file_path, "rb") as f:
+            response = openai.File.create(
+                file=f,
+                purpose="assistants"
+            )
+        return response.id  # Return the file ID
+    except Exception as e:
+        logging.error(f"Error uploading {file_path} to OpenAI: {e}")
+        return None
