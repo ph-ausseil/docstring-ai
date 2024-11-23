@@ -1,3 +1,15 @@
+"""
+This module provides functions to extract descriptions from docstrings,
+add docstrings to Python code using OpenAI’s Assistant, and parse
+Python classes from a file. It includes utilities for interacting with
+the OpenAI API and logging errors encountered during execution.
+
+Functions:
+- extract_description_from_docstrings: Extracts simple descriptions from docstrings in the given code.
+- extract_class_docstring: Extracts the docstring of a specified class from the code.
+- add_docstrings_to_code: Sends code to the OpenAI Assistant to add appropriate docstrings.
+- parse_classes: Parses a Python file to extract a dictionary of classes and their parent classes.
+"""
 
 import openai
 import time
@@ -7,11 +19,22 @@ import logging
 from docstring_ai import RETRY_BACKOFF
 from docstring_ai.lib.prompt_utils import extract_code_from_message
 
-
 def extract_description_from_docstrings(code_with_docstrings: str) -> str:
     """
-    Extracts a simple description from docstrings.
-    This can be enhanced with more sophisticated parsing.
+    Extracts a simple description from docstrings in the provided code.
+
+    This function parses the code and retrieves the first line of docstrings
+    for each function, class, and module, returning them in a formatted string.
+
+    Args:
+        code_with_docstrings (str): The Python code containing docstrings.
+
+    Returns:
+        str: A semicolon-separated string of descriptions extracted from 
+             the docstrings. If no descriptions are found, returns an empty string.
+
+    Raises:
+        Exception: If there is an error while parsing the code.
     """
     descriptions = []
     try:
@@ -30,11 +53,19 @@ def extract_description_from_docstrings(code_with_docstrings: str) -> str:
         logging.error(f"Error parsing code for description: {e}")
     return "; ".join(descriptions)
 
-
-
 def extract_class_docstring(code: str, class_name: str) -> str:
     """
-    Extracts the docstring of a specific class from the modified code.
+    Extracts the docstring of a specific class from the provided code.
+
+    Args:
+        code (str): The Python code containing the class definition.
+        class_name (str): The name of the class whose docstring is to be extracted.
+
+    Returns:
+        str: The docstring of the specified class, or an empty string if not found.
+
+    Raises:
+        Exception: If there is an error during class docstring extraction.
     """
     try:
         tree = ast.parse(code)
@@ -46,13 +77,26 @@ def extract_class_docstring(code: str, class_name: str) -> str:
         logging.error(f"Error extracting docstring for class '{class_name}': {e}")
     return ""
 
-
 def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code: str, context: str) -> str:
     """
-    Send code along with few-shot examples to the Assistant to add docstrings.
-    Returns the modified code.
+    Sends code along with few-shot examples to the OpenAI Assistant to add docstrings.
+
+    Args:
+        api_key (str): The API key for OpenAI.
+        assistant_id (str): The ID of the assistant to use for the operation.
+        thread_id (str): The ID of the thread for the conversation.
+        code (str): The Python code for which docstrings need to be added.
+        context (str): Contextual information or examples for the assistant.
+
+    Returns:
+        str: The modified code with added docstrings, or None if an error occurs.
+
+    Raises:
+        Exception: If there is an error during the interaction with the OpenAI API.
     """
     try:
+        # Escape triple backticks in the original code to prevent interference
+        escaped_code = code.replace('```', '` ``')
         # Add a message to the thread
         message = openai.beta.threads.messages.create(
             thread_id=thread_id,
@@ -62,7 +106,7 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
                 "Please add appropriate docstrings to the following Python code. "
                 "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
                 "```python\n"
-                f"{code}\n"
+                f"{escaped_code}\n"
                 "```"
             ),
         )
@@ -110,6 +154,8 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
 
         # Extract code block from assistant's message
         modified_code = extract_code_from_message(assistant_message)
+        # Revert the escaped backticks to original
+        final_code = modified_code.replace('` ``', '```')
         return modified_code
     except Exception as e:
         logging.error(f"Error during docstring addition: {e}")
@@ -134,7 +180,9 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
 
         # Extract code block from assistant's message
         modified_code = extract_code_from_message(assistant_message)
-        return modified_code
+        # Revert the escaped backticks to original
+        final_code = modified_code.replace('` ``', '```')
+        return final_code
     except Exception as e:
         logging.error(f"Error during docstring addition: {e}")
         return None

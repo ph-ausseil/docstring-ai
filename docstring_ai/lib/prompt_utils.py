@@ -1,3 +1,18 @@
+"""
+This module provides functionalities to initialize and manage an AI assistant
+for adding docstrings to Python code. It utilizes OpenAI's API to create and
+interact with the assistant, manage threads, and construct prompts based on
+context from ChromaDB.
+
+Functions:
+- initialize_assistant: Initialize or retrieve an existing assistant.
+- update_assistant_tool_resources: Update the assistant's resources with file IDs.
+- create_thread: Create a new thread for the assistant's interaction.
+- construct_few_shot_prompt: Constructs a few-shot prompt using context summaries.
+- generate_few_shot_examples: Generates few-shot examples based on context.
+- extract_code_from_message: Extracts code blocks from the assistant's messages.
+"""
+
 import openai
 import chromadb
 from docstring_ai.lib.chroma_utils import get_relevant_context
@@ -9,7 +24,20 @@ from docstring_ai.lib.config import MODEL
 def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant") -> str:
     """
     Initialize or retrieve an existing Assistant.
-    Returns the Assistant ID.
+
+    This function checks for existing assistants by name and returns the
+    assistant ID if found. If not, it creates a new assistant with specified
+    instructions.
+
+    Args:
+        api_key (str): The API key for OpenAI authentication.
+        assistant_name (str): The name of the assistant to retrieve or create. Default is "DocstringAssistant".
+
+    Returns:
+        str: The ID of the Assistant, or None if an error occurred.
+
+    Raises:
+        Exception: If there is an error in retrieving or creating the Assistant.
     """
     try:
         # List existing assistants
@@ -23,7 +51,8 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
         # If Assistant does not exist, create one
         instructions = (
             "You are an AI assistant specialized in adding comprehensive docstrings to Python code. "
-            "Ensure that all functions, classes, and modules have clear and docstrings. Docstrings should give extensive context and explaining purpose, parameters, return values, and any exceptions raised."
+            "Ensure that all functions, classes, and modules have clear and docstrings. "
+            "Docstrings should give extensive context and explain purpose, parameters, return values, and any exceptions raised."
         )
         assistant = openai.beta.assistants.create(
             name=assistant_name,
@@ -39,12 +68,23 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
         return None
 
 
-def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: List[str]):
+def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: List[str]) -> None:
     """
     Update the Assistant's tool_resources with the uploaded file IDs.
+
+    This function creates a vector store for the files and updates the assistant's
+    tool resources to include the new vector store.
+
+    Args:
+        api_key (str): The API key for OpenAI authentication.
+        assistant_id (str): The ID of the assistant to update.
+        file_ids (List[str]): A list of file IDs to add to the assistant's resources.
+
+    Raises:
+        Exception: If there is an error while updating the assistant's resources.
     """
     try:
-        vector_store = openai.beta.vector_stores.create(name=f"Docsting-AI::{assistant_id}")
+        vector_store = openai.beta.vector_stores.create(name=f"Docstring-AI::{assistant_id}")
         vector_store_file_batch = openai.beta.vector_stores.file_batches.create( 
             vector_store_id=vector_store.id,
             file_ids=file_ids)
@@ -53,7 +93,7 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
             tool_resources={
                 "file_search": {
                     "vector_store_ids": [vector_store.id]
-                    }
+                }
             }
         )
         logging.info(f"Assistant '{assistant_id}' tool_resources updated with {len(file_ids)} files.")
@@ -64,11 +104,22 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
 def create_thread(api_key: str, assistant_id: str, initial_messages: List[dict] = None) -> str:
     """
     Create a new Thread for the Assistant.
-    Returns the Thread ID.
+
+    A thread is used for maintaining a conversation context with the assistant.
+
+    Args:
+        api_key (str): The API key for OpenAI authentication.
+        assistant_id (str): The ID of the assistant for which to create a thread.
+        initial_messages (List[dict], optional): A list of initial messages to start the thread.
+
+    Returns:
+        str: The ID of the created thread, or None if an error occurred.
+
+    Raises:
+        Exception: If there is an error creating the thread.
     """
     try:
         payload = {
-            #"assistant_id": assistant_id,
             "messages": initial_messages if initial_messages else []
         }
         thread = openai.beta.threads.create(**payload)
@@ -82,10 +133,24 @@ def create_thread(api_key: str, assistant_id: str, initial_messages: List[dict] 
 def construct_few_shot_prompt(collection: chromadb.Collection, classes: Dict[str, List[str]], max_tokens: int) -> str:
     """
     Constructs a few-shot prompt using context summaries from ChromaDB.
+
+    This function retrieves relevant context based on class dependencies and
+    constructs a prompt for the assistant.
+
+    Args:
+        collection (chromadb.Collection): The ChromaDB collection to query for context.
+        classes (Dict[str, List[str]]): A dictionary containing class names and their parent classes.
+        max_tokens (int): The maximum number of tokens to be used in the prompt.
+
+    Returns:
+        str: The constructed few-shot prompt.
+
+    Raises:
+        Exception: If there is an error retrieving context or generating the prompt.
     """
     context = get_relevant_context(collection, classes, max_tokens // 2)  # Allocate half tokens to context
     prompt = ""
-    if context : 
+    if context: 
         few_shot_examples = generate_few_shot_examples(context)
         prompt = few_shot_examples
     return prompt
@@ -94,6 +159,15 @@ def construct_few_shot_prompt(collection: chromadb.Collection, classes: Dict[str
 def generate_few_shot_examples(context: str) -> str:
     """
     Generates few-shot examples based on the retrieved context summaries.
+
+    The context is assumed to contain example docstrings, and this function
+    formats them into a prompt suitable for the assistant.
+
+    Args:
+        context (str): The context containing example docstrings.
+
+    Returns:
+        str: The few-shot examples formatted in a readable manner.
     """
     # For simplicity, assume context contains example docstrings
     # In a real scenario, you might format this differently

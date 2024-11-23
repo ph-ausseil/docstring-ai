@@ -1,3 +1,11 @@
+"""
+This module processes Python files to add docstrings using OpenAI's Assistant,
+embeds the files in ChromaDB, and integrates with GitHub for pull request creation.
+
+Functions:
+- process_files_and_create_prs: Processes Python files, adds docstrings, and creates pull requests.
+"""
+
 import os
 import logging
 import openai
@@ -22,7 +30,6 @@ from docstring_ai.lib.prompt_utils import (
     update_assistant_tool_resources,
     create_thread,
     construct_few_shot_prompt
-
 )
 from docstring_ai.lib.chroma_utils import (
     initialize_chroma,
@@ -41,7 +48,39 @@ from docstring_ai.lib.github_utils import create_github_pr
 from docstring_ai import MAX_TOKENS, CHROMA_COLLECTION_NAME, CACHE_FILE_NAME
 
 
-def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, github_token: str, github_repo: str, branch_name: str, pr_name: str, pr_depth: int, manual: bool):
+def process_files_and_create_prs(
+    repo_path: str, 
+    api_key: str, 
+    create_pr: bool, 
+    github_token: str, 
+    github_repo: str, 
+    branch_name: str, 
+    pr_name: str, 
+    pr_depth: int, 
+    manual: bool
+) -> None:
+    """
+    Processes Python files in the specified repository, adds docstrings using OpenAI's Assistant,
+    and creates pull requests on GitHub if specified.
+
+    Args:
+        repo_path (str): The path of the Git repository to process.
+        api_key (str): The OpenAI API key for making requests.
+        create_pr (bool): Flag indicating if pull requests should be created.
+        github_token (str): The GitHub token for authentication.
+        github_repo (str): The repository where pull requests will be made.
+        branch_name (str): The name of the branch for the pull request.
+        pr_name (str): The name of the pull request to create.
+        pr_depth (int): The maximum depth to categorize folders for PR creation.
+        manual (bool): Flag indicating if manual approval is required for changes.
+
+    Returns:
+        None: This function performs its operations and does not return a value.
+
+    Raises:
+        Exception: Various exceptions may occur during file processing, API calls,
+                    or Git operations, which are logged accordingly.
+    """
     openai.api_key = api_key
 
     # Check if Git is present
@@ -109,7 +148,7 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
             with open(file_path, "rb") as f:
                 response = openai.files.create(
                     file=f,
-                    purpose= "assistants"
+                    purpose="assistants"
                 )
             file_id = response.id
             if file_id:
@@ -184,17 +223,6 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
                 elif git_present and file_has_uncommitted_changes(repo_path, file_path):
                     # Git is present: Backup if the file has uncommitted changes
                     create_backup(file_path)
-
-                # if manual:
-                #     # Ask for confirmation before applying changes
-                #     if not prompt_user_confirmation(f"Do you want to apply changes to {file_path}?"):
-                #         logging.info(f"Changes for {file_path} were not applied by the user.")
-                #         continue
-                            
-                print("\n\n!!!!!!!!!!!!!!!!!!\n\n")
-                print(f"Filepath:{file_path}\n\n")
-                print(f"modified_code:{modified_code}")
-                print("\n\n@@@@@@@@@@@@@@@n\n")
 
                 # Update the file with modified code
                 with open(file_path, 'w', encoding='utf-8') as f:
@@ -271,9 +299,9 @@ def process_files_and_create_prs(repo_path: str, api_key: str, create_pr: bool, 
 
                 # Create GitHub PR
                 create_github_pr(
-                    repo_path = repo_path, 
-                    github_token = github_token, 
-                    github_repo = github_repo, 
-                    branch_name = folder_branch_name, 
-                    pr_name= folder_pr_name
-                    )
+                    repo_path=repo_path, 
+                    github_token=github_token, 
+                    github_repo=github_repo, 
+                    branch_name=folder_branch_name, 
+                    pr_name=folder_pr_name
+                )
