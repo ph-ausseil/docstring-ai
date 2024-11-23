@@ -81,7 +81,7 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
                 run_id=run.id,
                 thread_id=thread_id
                 )
-            status = current_run['status']
+            status = current_run.status
             if status == 'completed':
                 logging.info(f"Run {run.id} completed.")
                 break
@@ -93,8 +93,8 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
                 time.sleep(RETRY_BACKOFF)
 
         # Retrieve the assistant's response
-        thread = openai.beta.threads.retrieve(thread_id)
-        messages = thread.get('messages', [])
+        thread = openai.beta.threads.retrieve(thread_id=thread_id)
+        messages = thread.messages
         if not messages:
             logging.error(f"No messages found in Thread: {thread_id}")
             return None
