@@ -55,7 +55,6 @@ from docstring_ai.lib.prompt_utils import add_docstrings
 
 # Load environment variables from .env file
 load_dotenv()
-logging.setLevel(logging.DEBUG)
 
 def main():
     """
