@@ -53,27 +53,31 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
     Returns the modified code.
     """
     try:
-        # Create a Run with context
+        # Add a message to the thread
         message = openai.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content=(
-                        f"{context}\n\n"
-                        "Please add appropriate docstrings to the following Python code. "
-                        "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
-                        "```python\n"
-                        f"{code}\n"
-                        "```"
-                    ),
+                f"{context}\n\n"
+                "Please add appropriate docstrings to the following Python code. "
+                "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
+                "```python\n"
+                f"{code}\n"
+                "```"
+            ),
         )
         logging.info(f"Message created with ID: {message.id} for Thread: {thread_id}")
 
+        # Create a Run for the message
+        run = openai.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+        )
+        logging.info(f"Run created with ID: {run.id} for Thread: {thread_id}")
+
         # Poll for Run completion
         while True:
-            current_run = openai.beta.threads.runs.create(
-                thread_id=thread_id,
-                assistant_id=assistant_id,
-            )
+            current_run = openai.beta.threads.runs.retrieve(run.id)
             status = current_run['status']
             if status == 'completed':
                 logging.info(f"Run {run.id} completed.")
@@ -84,6 +88,26 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
             else:
                 logging.info(f"Run {run.id} status: {status}. Waiting for completion...")
                 time.sleep(RETRY_BACKOFF)
+
+        # Retrieve the assistant's response
+        thread = openai.beta.threads.retrieve(thread_id)
+        messages = thread.get('messages', [])
+        if not messages:
+            logging.error(f"No messages found in Thread: {thread_id}")
+            return None
+
+        # Assuming the last message is the assistant's response
+        assistant_message = messages[-1].get('content', "")
+        if not assistant_message:
+            logging.error("Assistant's message is empty.")
+            return None
+
+        # Extract code block from assistant's message
+        modified_code = extract_code_from_message(assistant_message)
+        return modified_code
+    except Exception as e:
+        logging.error(f"Error during docstring addition: {e}")
+        return None
 
         # Retrieve the assistant's response
         thread = openai.beta.threads.runs.retrieve(
