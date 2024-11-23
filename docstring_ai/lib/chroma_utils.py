@@ -2,6 +2,7 @@ import os
 import openai
 from docstring_ai.lib.logger import show_file_progress
 import chromadb
+import logging
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 import tiktoken

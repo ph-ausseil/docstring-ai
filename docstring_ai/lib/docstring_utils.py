@@ -14,6 +14,7 @@ Functions:
 import openai
 import time
 import ast
+import logging
 from typing import List, Dict
 from docstring_ai.lib.logger import show_file_progress
 from docstring_ai import RETRY_BACKOFF
