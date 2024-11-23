@@ -94,7 +94,8 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
 
         # Retrieve the assistant's response
         thread = openai.beta.threads.retrieve(thread_id=thread_id)
-        messages = thread.messages
+        thread_messages = openai.beta.threads.messages.list(thread_id=thread_id)
+        messages = thread_messages.data
         if not messages:
             logging.error(f"No messages found in Thread: {thread_id}")
             return None
@@ -117,7 +118,8 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
             thread_id=thread_id,
             run_id=current_run.id
             )
-        messages = thread.messages
+        thread_messages = openai.beta.threads.messages.list(thread_id=thread_id)
+        messages = thread_messages.data
         if not messages:
             logging.error(f"No messages found in Thread: {thread_id}")
             return None
