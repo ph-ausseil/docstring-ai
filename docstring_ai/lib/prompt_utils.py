@@ -84,8 +84,10 @@ def construct_few_shot_prompt(collection: chromadb.Collection, classes: Dict[str
     Constructs a few-shot prompt using context summaries from ChromaDB.
     """
     context = get_relevant_context(collection, classes, max_tokens // 2)  # Allocate half tokens to context
-    few_shot_examples = generate_few_shot_examples(context)
-    prompt = few_shot_examples
+    prompt = ""
+    if context : 
+        few_shot_examples = generate_few_shot_examples(context)
+        prompt = few_shot_examples
     return prompt
 
 
