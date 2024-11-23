@@ -23,7 +23,7 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
         # If Assistant does not exist, create one
         instructions = (
             "You are an AI assistant specialized in adding comprehensive docstrings to Python code. "
-            "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised."
+            "Ensure that all functions, classes, and modules have clear and docstrings. Docstrings should give extensive context and explaining purpose, parameters, return values, and any exceptions raised."
         )
         assistant = openai.beta.assistants.create(
             name=assistant_name,
@@ -108,8 +108,12 @@ def extract_code_from_message(message: str) -> str:
     Extracts the code block from the assistant's message.
     """
     import re
+    print("\n\n###############\n\n")
+    print(message[-1].text.value)
+    print("\n\n@@@@@@@@@@@@@@@n\n")
+    exit()
     code_pattern = re.compile(r"```python\n([\s\S]*?)```")
-    match = code_pattern.search(message)
+    match = code_pattern.search(message[-1].text.value)
     if match:
         return match.group(1)
     else:

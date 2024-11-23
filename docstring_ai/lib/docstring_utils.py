@@ -101,7 +101,7 @@ def add_docstrings_to_code(api_key: str, assistant_id: str, thread_id: str, code
             return None
 
         # Assuming the last message is the assistant's response
-        assistant_message = messages[-1].get('content', "")
+        assistant_message = messages[-1].content
         if not assistant_message:
             logging.error("Assistant's message is empty.")
             return None
