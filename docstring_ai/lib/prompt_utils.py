@@ -201,6 +201,7 @@ def extract_code_from_message(message: str) -> str:
     if match:
         return match.group(1)
     else:
+        print(message[-1].text.value)
         raise Exception("No code block found in the assistant's response.")
 
 
@@ -271,14 +272,8 @@ def get_file_description(assistant_id : str, thread_id: str, file_content: str) 
             logging.error(f"No messages found in Thread: {thread_id}")
             return "Description unavailable due to missing response."
 
-        # Extract code block from assistant's message
-        modified_code = extract_code_from_message(assistant_message)
-        # Revert the escaped backticks to original
-        final_code = modified_code.replace('` ``', '```')
-        return modified_code
+        return assistant_message[-1].text.value
     except Exception as e:
-        logging.error(f"Error during docstring addition: {e}")
-        return None
 
         # Retrieve the assistant's response
         thread = openai.beta.threads.runs.retrieve(
@@ -297,11 +292,7 @@ def get_file_description(assistant_id : str, thread_id: str, file_content: str) 
             logging.error("Assistant's message is empty.")
             return "Description unavailable due to empty response."
 
-        # Extract code block from assistant's message
-        modified_code = extract_code_from_message(assistant_message)
-        # Revert the escaped backticks to original
-        final_code = modified_code.replace('` ``', '```')
-        return final_code
+        return assistant_message[-1].text.value
     except Exception as e:
         logging.error(f"Error during docstring addition: {e}")
         return "Description unavailable due to an API error."
@@ -389,11 +380,9 @@ def add_docstrings_to_code( assistant_id: str, thread_id: str, code: str, contex
         modified_code = extract_code_from_message(assistant_message)
         # Revert the escaped backticks to original
         final_code = modified_code.replace('` ``', '```')
-        return modified_code
+        return final_code
     except Exception as e:
-        logging.error(f"Error during docstring addition: {e}")
-        return None
-
+        logging.error("Attempting new run...")
         # Retrieve the assistant's response
         thread = openai.beta.threads.runs.retrieve(
             thread_id=thread_id,
