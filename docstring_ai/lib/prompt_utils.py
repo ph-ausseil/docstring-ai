@@ -346,7 +346,7 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
     print(f"status:{thread_messages[-1].status}\n\n")
 
     try:
-        extract_code_from_message(thread_messages[-1].content)
+        extract_code_from_message(thread_messages[-1].content[-1].text.value)
     except Exception:
         for message in thread_messages:
             print(f"#######################\n")
