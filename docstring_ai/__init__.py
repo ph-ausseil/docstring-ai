@@ -1,3 +1,9 @@
+"""
+This module imports constants related to the model configuration for processing tasks.
+These constants include information on model names, token limits, embedding models,
+API request limits, caching, and database collections.
+"""
+
 from .lib.config import (
     MODEL,  # str: The name of the model to be used for processing.
     MAX_TOKENS,  # int: The maximum number of tokens allowed in a single request to the model.

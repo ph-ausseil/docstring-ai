@@ -212,7 +212,7 @@ def get_file_description(assistant_id: str, thread_id: str, file_content: str) -
             assistant_id=assistant_id,
         )
         if poll_run_completion(run.id, thread_id):
-            return retrieve_last_assistant_message(thread_id).text.value
+            return retrieve_last_assistant_message(thread_id)[-1].text.value
         return "Description unavailable due to failed run."
     except Exception as e:
         logging.error(f"Error during file description retrieval: {e}")

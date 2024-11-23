@@ -17,7 +17,6 @@ import sys
 import logging
 import difflib
 
-
 def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch_name: str, pr_name: str) -> None:
     """
     Creates a GitHub pull request for the specified repository, branch, and pull request name.
@@ -83,7 +82,6 @@ def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch
     except Exception as e:
         logging.error(f"Error creating GitHub PR: {e}")
 
-
 def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: str) -> None:
     """
     Commits and pushes changes to the specified branch in the given repository.
@@ -121,7 +119,6 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
     except subprocess.CalledProcessError as e:
         logging.error(f"Git command failed: {e}")
         raise e
-
 
 def get_changed_files(repo_path: str) -> List[str]:
     """

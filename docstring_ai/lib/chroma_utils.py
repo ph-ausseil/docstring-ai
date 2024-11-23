@@ -66,7 +66,6 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
     return collection
 
 
-
 def embed_and_store_files(collection: chromadb.Collection, python_files: List[str]) -> None:
     """Embed each Python file and store in ChromaDB.
 
@@ -142,7 +141,6 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
             context += doc + "\n\n"
             token_count += doc_tokens
     return context
-
 
 
 def store_class_summary(collection: chromadb.Collection, file_path: str, class_name: str, summary: str) -> None:
