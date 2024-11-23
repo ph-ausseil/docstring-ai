@@ -260,7 +260,7 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
     )
     if context:
         prompt = f"{context}\n\n" + prompt
-        
+
     try :
         response = send_message_to_assistant(assistant_id, thread_id, prompt)
     except : 
@@ -345,13 +345,13 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
     print(f"create_at:{thread_messages[-1].create_at}\n")
     print(f"status:{thread_messages[-1].status}\n\n")
 
-    try : 
+    try:
         extract_code_from_message(thread_messages[-1].content)
-    except:
+    except Exception:
         for message in thread_messages:
-        print(f"#######################\n")
-        print(f"role:{message.role}\n")
-        print(f"create_at:{message.create_at}\n")
-        print(f"status:{message.status}\n")
+            print(f"#######################\n")
+            print(f"role:{message.role}\n")
+            print(f"create_at:{message.create_at}\n")
+            print(f"status:{message.status}\n")
     return thread_messages[-1].content
 
