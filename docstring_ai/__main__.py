@@ -1,3 +1,23 @@
+"""
+This module automates the process of adding docstrings to Python files,
+integrating with GitHub to create pull requests (PRs). It uses OpenAI's API 
+for generating docstrings and CLI arguments for configuration.
+
+Modules:
+- argparse: For parsing command-line arguments.
+- os: For file and environment operations.
+- openai: To interact with the OpenAI API.
+- chromadb: For embedding and storing code context.
+- logging: For logging messages and errors.
+- datetime: For handling date and time operations.
+- subprocess: To run shell commands.
+- sys: For system-specific parameters and functions.
+- dotenv: To load environment variables from a .env file.
+
+Functions:
+- main: The entry point of the script that handles argument parsing and execution flow.
+"""
+
 import os
 import openai
 import argparse
@@ -17,7 +37,6 @@ import sys
 import logging
 import difflib
 from docstring_ai.lib.docstring_utils import (
-    add_docstrings_to_code,
     parse_classes,
     extract_class_docstring,
     extract_description_from_docstrings
@@ -32,6 +51,7 @@ from docstring_ai.lib.utils import (
     sort_files_by_size,
     prompt_user_confirmation,
 )
+from docstring_ai.lib.prompt_utils import add_docstrings_to_code
 
 # Load environment variables from .env file
 load_dotenv()
@@ -44,8 +64,18 @@ logging.basicConfig(
     ]
 )
 
-
 def main():
+    """
+    The main function that serves as the entry point of the script.
+
+    This function sets up the command-line interface for configuring the 
+    process of adding docstrings to Python files, handles user input and 
+    validations, and orchestrates the docstring generation and GitHub 
+    integration process.
+
+    It accepts arguments related to file paths, OpenAI API key, GitHub 
+    repository information, and other configuration options for PR creation.
+    """
     parser = argparse.ArgumentParser(
         description="Automate adding docstrings to Python files and integrate with GitHub for PR creation."
     )
@@ -124,7 +154,11 @@ def main():
         print("Manual validation circuits are enabled. You will be prompted to review changes before they are applied or PRs are created.")
 
     # Process files and handle PRs
-    process_files_and_create_prs(path, api_key, args.pr is not None, github_token, github_repo, branch_name, pr_name, pr_depth, manual)
+    process_files_and_create_prs(
+        path, api_key, args.pr is not None, github_token, 
+        github_repo, branch_name, pr_name, pr_depth, manual
+    )
 
 if __name__ == "__main__":
     main()
+

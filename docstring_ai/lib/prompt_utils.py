@@ -229,6 +229,14 @@ def get_file_description(assistant_id : str, thread_id: str, file_content: str) 
             role="user",
             content=prompt,
         )
+
+        # Create a Run for the message
+        run = openai.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+        )
+        logging.info(f"Run created with ID: {run.id} for Thread: {thread_id}")
+
        # Poll for Run completion
         while True:
             current_run = openai.beta.threads.runs.retrieve(
