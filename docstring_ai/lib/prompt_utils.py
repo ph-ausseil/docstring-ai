@@ -18,7 +18,7 @@ import chromadb
 from docstring_ai.lib.chroma_utils import get_relevant_context
 import logging
 from typing import List, Dict
-from docstring_ai.lib.config import MODEL , RETRY_BACKOFF
+from docstring_ai.lib.config import MODEL, RETRY_BACKOFF
 
 
 def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant") -> str:
@@ -40,15 +40,12 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
         Exception: If there is an error in retrieving or creating the Assistant.
     """
     try:
-        # List existing assistants
         response = openai.beta.assistants.list()
-        assistants = response.data
-        for assistant in assistants:
+        for assistant in response.data:
             if assistant.name == assistant_name:
                 logging.info(f"Assistant '{assistant_name}' found with ID: {assistant.id}")
                 return assistant.id
 
-        # If Assistant does not exist, create one
         instructions = (
             "You are an AI assistant specialized in adding comprehensive docstrings to Python code. "
             "Ensure that all functions, classes, and modules have clear and docstrings. "
@@ -84,15 +81,12 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
         Exception: If there is an error while updating the assistant's resources.
     """
     try:
-        vector_store = openai.beta.vector_stores.create(name=f"Docstring-AI::{assistant_id}")
-        vector_store_file_batch = openai.beta.vector_stores.file_batches.create( 
-            vector_store_id=vector_store.id,
-            file_ids=file_ids)
+        vector_store_id = create_vector_store(f"Docstring-AI::{assistant_id}", file_ids)
         openai.beta.assistants.update(
             assistant_id=assistant_id,
             tool_resources={
                 "file_search": {
-                    "vector_store_ids": [vector_store.id]
+                    "vector_store_ids": [vector_store_id]
                 }
             }
         )
@@ -148,35 +142,20 @@ def construct_few_shot_prompt(collection: chromadb.Collection, classes: Dict[str
     Raises:
         Exception: If there is an error retrieving context or generating the prompt.
     """
-    context = get_relevant_context(collection, classes, max_tokens // 2)  # Allocate half tokens to context
-    prompt = ""
-    if context: 
-        few_shot_examples = generate_few_shot_examples(context)
-        prompt = few_shot_examples
-    return prompt
+    try:
+        context = get_relevant_context(collection, classes, max_tokens // 2)
+        if not context:
+            return ""
+        examples = (
+            "Here are some examples of Python classes with comprehensive docstrings:\n\n"
+            f"{context}"
+            "Now, please add appropriate docstrings to the following Python code:\n\n"
+        )
+        return examples
+    except Exception as e:
+        logging.error(f"Error constructing few-shot prompt: {e}")
+        return ""
 
-
-def generate_few_shot_examples(context: str) -> str:
-    """
-    Generates few-shot examples based on the retrieved context summaries.
-
-    The context is assumed to contain example docstrings, and this function
-    formats them into a prompt suitable for the assistant.
-
-    Args:
-        context (str): The context containing example docstrings.
-
-    Returns:
-        str: The few-shot examples formatted in a readable manner.
-    """
-    # For simplicity, assume context contains example docstrings
-    # In a real scenario, you might format this differently
-    examples = (
-        "Here are some examples of Python classes with comprehensive docstrings:\n\n"
-        f"{context}"
-        "Now, please add appropriate docstrings to the following Python code:\n\n"
-    )
-    return examples
 
 
 def extract_code_from_message(message: str) -> str:
@@ -204,8 +183,7 @@ def extract_code_from_message(message: str) -> str:
         print(message[-1].text.value)
         raise Exception("No code block found in the assistant's response.")
 
-
-def get_file_description(assistant_id : str, thread_id: str, file_content: str) -> str:
+def get_file_description(assistant_id: str, thread_id: str, file_content: str) -> str:
     """
     Sends the entire file content to the Assistant and retrieves a detailed description of the file.
     
@@ -220,85 +198,28 @@ def get_file_description(assistant_id : str, thread_id: str, file_content: str) 
     prompt = (
         "Provide a comprehensive & detailed description of the following Python file. "
         "Highlight its main functionalities, purpose, classes, and function constructors. "
-        "Include any important details that would help understand the purpose, functionality, context, structure and intent of the code.\n\n"
+        "Include any important details that would help understand the purpose, functionality, context, structure, and intent of the code.\n\n"
         f"{file_content}"
     )
-    
     try:
         message = openai.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content=prompt,
         )
-
-        # Create a Run for the message
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=assistant_id,
         )
-        logging.info(f"Run created with ID: {run.id} for Thread: {thread_id}")
-
-       # Poll for Run completion
-        while True:
-            current_run = openai.beta.threads.runs.retrieve(
-                run_id=run.id,
-                thread_id=thread_id
-            )
-            status = current_run.status
-            if status == 'completed':
-                logging.info(f"Run {run.id} completed.")
-                break
-            elif status in ['failed', 'expired', 'cancelled']:
-                logging.error(f"Run {run.id} ended with status: {status}")
-                return None
-            else:
-                logging.info(f"Run {run.id} status: {status}. Waiting for completion...")
-                time.sleep(RETRY_BACKOFF)
-
-        # Retrieve the assistant's response
-        thread = openai.beta.threads.retrieve(thread_id=thread_id)
-        thread_messages = openai.beta.threads.messages.list(
-            thread_id=thread_id,
-            order="asc")
-        messages = thread_messages.data
-        if not messages:
-            logging.error(f"No messages found in Thread: {thread_id}")
-            return "Description unavailable due to missing response."
-
-
-        # Assuming the last message is the assistant's response
-        assistant_message = messages[-1].content
-        if not messages:
-            logging.error(f"No messages found in Thread: {thread_id}")
-            return "Description unavailable due to missing response."
-
-        return assistant_message[-1].text.value
+        if poll_run_completion(run.id, thread_id):
+            return retrieve_last_assistant_message(thread_id).text.value
+        return "Description unavailable due to failed run."
     except Exception as e:
-
-        # Retrieve the assistant's response
-        thread = openai.beta.threads.runs.retrieve(
-            thread_id=thread_id,
-            run_id=current_run.id
-            )
-        thread_messages = openai.beta.threads.messages.list(thread_id=thread_id)
-        messages = thread_messages.data
-        if not messages:
-            logging.error(f"No messages found in Thread: {thread_id}")
-            return "Description unavailable due to missing response."
-
-        # Assuming the last message is the assistant's response
-        assistant_message = messages[-1].content
-        if not assistant_message:
-            logging.error("Assistant's message is empty.")
-            return "Description unavailable due to empty response."
-
-        return assistant_message[-1].text.value
-    except Exception as e:
-        logging.error(f"Error during docstring addition: {e}")
+        logging.error(f"Error during file description retrieval: {e}")
         return "Description unavailable due to an API error."
 
 
-def add_docstrings_to_code( assistant_id: str, thread_id: str, code: str, context: str) -> str:
+def add_docstrings_to_code(assistant_id: str, thread_id: str, code: str, context: str) -> str:
     """
     Sends code along with few-shot examples to the OpenAI Assistant to add docstrings.
 
@@ -321,90 +242,97 @@ def add_docstrings_to_code( assistant_id: str, thread_id: str, code: str, contex
     try:
         # Escape triple backticks in the original code to prevent interference
         escaped_code = code.replace('```', '` ``')
-        # Add a message to the thread
+        prompt = (
+            f"{context}\n\n"
+            "Please add appropriate docstrings to the following Python code. "
+            "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
+            "```python\n"
+            f"{escaped_code}\n"
+            "```"
+        )
         message = openai.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
-            content=(
-                f"{context}\n\n"
-                "Please add appropriate docstrings to the following Python code. "
-                "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
-                "```python\n"
-                f"{escaped_code}\n"
-                "```"
-            ),
+            content=prompt,
         )
-        logging.info(f"Message created with ID: {message.id} for Thread: {thread_id}")
-
-        # Create a Run for the message
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=assistant_id,
         )
-        logging.info(f"Run created with ID: {run.id} for Thread: {thread_id}")
-
-        # Poll for Run completion
-        while True:
-            current_run = openai.beta.threads.runs.retrieve(
-                run_id=run.id,
-                thread_id=thread_id
-            )
-            status = current_run.status
-            if status == 'completed':
-                logging.info(f"Run {run.id} completed.")
-                break
-            elif status in ['failed', 'expired', 'cancelled']:
-                logging.error(f"Run {run.id} ended with status: {status}")
-                return None
-            else:
-                logging.info(f"Run {run.id} status: {status}. Waiting for completion...")
-                time.sleep(RETRY_BACKOFF)
-
-        # Retrieve the assistant's response
-        thread = openai.beta.threads.retrieve(thread_id=thread_id)
-        thread_messages = openai.beta.threads.messages.list(
-            thread_id=thread_id,
-            order="asc")
-        messages = thread_messages.data
-        if not messages:
-            logging.error(f"No messages found in Thread: {thread_id}")
-            return None
-
-        # Assuming the last message is the assistant's response
-        assistant_message = messages[-1].content
-        if not assistant_message:
-            logging.error("Assistant's message is empty.")
-            return None
-
-        # Extract code block from assistant's message
-        modified_code = extract_code_from_message(assistant_message)
-        # Revert the escaped backticks to original
-        final_code = modified_code.replace('` ``', '```')
-        return final_code
-    except Exception as e:
-        logging.error("Attempting new run...")
-        # Retrieve the assistant's response
-        thread = openai.beta.threads.runs.retrieve(
-            thread_id=thread_id,
-            run_id=current_run.id
-            )
-        thread_messages = openai.beta.threads.messages.list(thread_id=thread_id)
-        messages = thread_messages.data
-        if not messages:
-            logging.error(f"No messages found in Thread: {thread_id}")
-            return None
-
-        # Assuming the last message is the assistant's response
-        assistant_message = messages[-1].content
-        if not assistant_message:
-            logging.error("Assistant's message is empty.")
-            return None
-
-        # Extract code block from assistant's message
-        modified_code = extract_code_from_message(assistant_message)
-        # Revert the escaped backticks to original
-        final_code = modified_code.replace('` ``', '```')
-        return final_code
+        if poll_run_completion(run.id, thread_id):
+            modified_code = retrieve_last_assistant_message(thread_id)
+            
+            return extract_code_from_message(modified_code).replace('` ``', '```') if modified_code else None
+        return None
     except Exception as e:
         logging.error(f"Error during docstring addition: {e}")
         return None
+
+# Utility Functions
+
+def create_vector_store(vector_store_name: str, file_ids: List[str]) -> str:
+    """
+    Creates a vector store and associates it with file IDs.
+
+    Args:
+        vector_store_name (str): Name for the vector store.
+        file_ids (List[str]): List of file IDs to associate with the vector store.
+
+    Returns:
+        str: The ID of the created vector store.
+    """
+    vector_store = openai.beta.vector_stores.create(name=vector_store_name)
+    openai.beta.vector_stores.file_batches.create(
+        vector_store_id=vector_store.id,
+        file_ids=file_ids
+    )
+    return vector_store.id
+
+
+def poll_run_completion(run_id: str, thread_id: str) -> bool:
+    """
+    Polls until the run is completed, failed, or cancelled.
+
+    Args:
+        run_id (str): The ID of the run to monitor.
+        thread_id (str): The thread ID associated with the run.
+
+    Returns:
+        bool: True if the run completed successfully, False otherwise.
+    """
+    while True:
+        current_run = openai.beta.threads.runs.retrieve(
+            run_id=run_id,
+            thread_id=thread_id
+        )
+        status = current_run.status
+        if status == 'completed':
+            logging.info(f"Run {run_id} completed.")
+            return True
+        elif status in ['failed', 'expired', 'cancelled']:
+            logging.error(f"Run {run_id} ended with status: {status}")
+            return False
+        else:
+            logging.info(f"Run {run_id} status: {status}. Waiting for completion...")
+            time.sleep(RETRY_BACKOFF)
+
+
+def retrieve_last_assistant_message(thread_id: str) -> str:
+    """
+    Retrieves the last message from a thread.
+
+    Args:
+        thread_id (str): The thread ID from which to retrieve the message.
+
+    Returns:
+        str: The last message content, or None if no message is found.
+    """
+    thread_messages = openai.beta.threads.messages.list(
+        thread_id=thread_id,
+        order="asc"
+    ).data
+    if not thread_messages:
+        logging.error(f"No messages found in Thread: {thread_id}")
+        return None
+    return thread_messages[-1].content
+

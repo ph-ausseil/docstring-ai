@@ -10,7 +10,16 @@ from docstring_ai import EMBEDDING_MODEL
 
 
 def initialize_chroma() -> chromadb.Client:
-    """Initialize ChromaDB client."""
+    """Initialize ChromaDB client.
+
+    This function establishes a connection to the ChromaDB server.
+
+    Returns:
+        chromadb.Client: A ChromaDB client instance connected to the server.
+
+    Example:
+        client = initialize_chroma()
+    """
     client = chromadb.Client(Settings(
         chroma_server_host="localhost",
         chroma_server_http_port="8000"
@@ -19,13 +28,26 @@ def initialize_chroma() -> chromadb.Client:
 
 
 def get_or_create_collection(client: chromadb.Client, collection_name: str) -> chromadb.Collection:
-    """Retrieve an existing collection or create a new one."""
+    """Retrieve an existing collection or create a new one.
+
+    This function checks if a specified collection exists in ChromaDB and returns it.
+    If the collection does not exist, it creates a new one with the given name.
+
+    Args:
+        client (chromadb.Client): The ChromaDB client used to interact with the database.
+        collection_name (str): The name of the collection to retrieve or create.
+
+    Returns:
+        chromadb.Collection: The ChromaDB collection instance.
+
+    Raises:
+        Exception: If there is an issue retrieving or creating the collection.
+    """
     existing_collections = client.list_collections()
     
     for collection in existing_collections:
         if collection.name == collection_name:
             logging.info(f"ChromaDB Collection '{collection_name}' found.")
-
             return client.get_collection(
                 name=collection_name,
                 embedding_function=embedding_functions.OpenAIEmbeddingFunction(
@@ -45,8 +67,19 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
 
 
 
-def embed_and_store_files(collection: chromadb.Collection, python_files: List[str]):
-    """Embed each Python file and store in ChromaDB."""
+def embed_and_store_files(collection: chromadb.Collection, python_files: List[str]) -> None:
+    """Embed each Python file and store in ChromaDB.
+
+    This function reads the contents of each specified Python file, embeds the content,
+    and stores the embedded representations in the ChromaDB collection.
+
+    Args:
+        collection (chromadb.Collection): The ChromaDB collection where documents will be stored.
+        python_files (List[str]): A list of file paths to the Python files to be embedded.
+
+    Raises:
+        Exception: If there's an error reading the files or adding them to ChromaDB.
+    """
     ids = []
     documents = []
     metadatas = []
@@ -77,7 +110,20 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
 def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, List[str]], max_tokens: int) -> str:
     """
     Retrieve relevant documents from ChromaDB based on class dependencies.
-    Ensures the total tokens do not exceed max_tokens.
+
+    This function fetches relevant document content from the specified collection
+    while ensuring that the total token count does not exceed the specified maximum.
+
+    Args:
+        collection (chromadb.Collection): The ChromaDB collection to query.
+        classes (Dict[str, List[str]]): A dictionary mapping class names to their dependencies.
+        max_tokens (int): The maximum number of tokens allowed for the retrieved context.
+
+    Returns:
+        str: The accumulated context as a single string.
+
+    Example:
+        context = get_relevant_context(collection, classes, max_tokens)
     """
     encoder = tiktoken.get_encoding("gpt2")
     context = ""
@@ -99,9 +145,25 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
 
 
 
-def store_class_summary(collection: chromadb.Collection, file_path: str, class_name: str, summary: str):
+def store_class_summary(collection: chromadb.Collection, file_path: str, class_name: str, summary: str) -> None:
     """
     Stores the class summary in ChromaDB for future context.
+
+    This function embeds the provided summary for a specific class and stores it 
+    in the specified ChromaDB collection, associating it with the respective 
+    file path and class name.
+
+    Args:
+        collection (chromadb.Collection): The ChromaDB collection where the summary will be stored.
+        file_path (str): The path to the file containing the class.
+        class_name (str): The name of the class for which the summary is stored.
+        summary (str): The summary text to be embedded and stored.
+
+    Raises:
+        Exception: If there's an error storing the class summary in ChromaDB.
+    
+    Example:
+        store_class_summary(collection, file_path, class_name, summary)
     """
     try:
         doc_id = f"{file_path}::{class_name}"
@@ -113,4 +175,3 @@ def store_class_summary(collection: chromadb.Collection, file_path: str, class_n
         logging.info(f"Stored summary for class '{class_name}' in ChromaDB.")
     except Exception as e:
         logging.error(f"Error storing class summary for '{class_name}': {e}")
-

@@ -34,9 +34,9 @@ def extract_description_from_docstrings(code_with_docstrings: str) -> str:
              the docstrings. If no descriptions are found, returns an empty string.
 
     Raises:
-        Exception: If there is an error while parsing the code.
+        Exception: If there is an error while parsing the code or extracting descriptions.
     """
-    logging.warning("Deprecated function : extract_description_from_docstrings , replaced by get_file_description")
+    logging.warning("Deprecated function: extract_description_from_docstrings, replaced by get_file_description")
     descriptions = []
     try:
         tree = ast.parse(code_with_docstrings)
@@ -54,6 +54,9 @@ def extract_description_from_docstrings(code_with_docstrings: str) -> str:
 def extract_class_docstring(code: str, class_name: str) -> str:
     """
     Extracts the docstring of a specific class from the provided code.
+
+    This function analyzes the code to find the class definition matching the 
+    specified class name and returns its associated docstring.
 
     Args:
         code (str): The Python code containing the class definition.
@@ -79,8 +82,10 @@ def parse_classes(file_path: str) -> Dict[str, List[str]]:
     """
     Parse a Python file and return a dictionary of classes and their parent classes.
 
-    This function reads a Python file and uses the Abstract Syntax Tree (AST) to
-    identify classes and their inherited parent classes.
+    This function reads a Python file and uses the Abstract Syntax Tree (AST) 
+    to identify classes and their inherited parent classes. The result is a 
+    dictionary where class names are keys and their corresponding parent classes 
+    are values in a list.
 
     Args:
         file_path (str): The path to the Python file to be parsed.
