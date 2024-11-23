@@ -21,8 +21,6 @@ def initialize_chroma() -> chromadb.Client:
 def get_or_create_collection(client: chromadb.Client, collection_name: str) -> chromadb.Collection:
     """Retrieve an existing collection or create a new one."""
     existing_collections = client.list_collections()
-    print(f"using api key {openai.api_key} ")
-    print(f"os.getenv(OPENAI_API_KEY) {os.getenv('OPENAI_API_KEY')} ")
     
     for collection in existing_collections:
         if collection.name == collection_name:
