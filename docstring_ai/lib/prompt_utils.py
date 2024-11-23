@@ -180,7 +180,6 @@ def extract_code_from_message(message: str) -> str:
     if match:
         return match.group(1)
     else:
-        print(message)
         raise Exception("No code block found in the assistant's response.")
 
 
@@ -206,7 +205,10 @@ def send_message_to_assistant(assistant_id: str, thread_id: str, prompt: str) ->
             thread_id=thread_id,
             assistant_id=assistant_id,
         )
-        if poll_run_completion(run.id, thread_id):
+        if poll_run_completion(
+            run_id=  run.id, 
+            thread_id=thread_id
+            ):
             return retrieve_last_assistant_message(thread_id)[-1].text.value
         return "Operation failed due to incomplete run."
     except Exception as e:
@@ -229,7 +231,9 @@ def generate_file_description(assistant_id: str, thread_id: str, file_content: s
         "Provide a comprehensive & detailed description of the following Python file. "
         "Highlight its main functionalities, purpose, classes, and function constructors. "
         "Include any important details that would help understand the purpose, functionality, context, structure, and intent of the code.\n\n"
-        f"{file_content}"
+        "```python\n"
+        f"{file_content}\n"
+        "```"
     )
     return send_message_to_assistant(assistant_id, thread_id, prompt)
 
@@ -248,14 +252,20 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
     """
     escaped_code = code.replace('```', '` ``')
     prompt = (
-        f"{context}\n\n"
         "Please add appropriate docstrings to the following Python code. "
         "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
         "```python\n"
         f"{escaped_code}\n"
         "```"
     )
-    response = send_message_to_assistant(assistant_id, thread_id, prompt)
+    if context:
+        prompt = f"{context}\n\n" + prompt
+    try :
+        response = send_message_to_assistant(assistant_id, thread_id, prompt)
+    except Exception e : 
+        print(f"Issue parssing the message {response}")
+        raise Exception(e)
+
     if response:
         return extract_code_from_message(response).replace('` ``', '```')
     return None
@@ -327,5 +337,20 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
     if not thread_messages:
         logging.error(f"No messages found in Thread: {thread_id}")
         return None
+
+
+    print(f"#######################\n")
+    print(f"role:{thread_messages[-1].role}\n")
+    print(f"create_at:{thread_messages[-1].create_at}\n")
+    print(f"status:{thread_messages[-1].status}\n\n")
+
+    try : 
+        extract_code_from_message(thread_messages[-1].content)
+    except:
+        for message in thread_messages:
+        print(f"#######################\n")
+        print(f"role:{message.role}\n")
+        print(f"create_at:{message.create_at}\n")
+        print(f"status:{message.status}\n")
     return thread_messages[-1].content
 
