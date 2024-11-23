@@ -176,13 +176,13 @@ def extract_code_from_message(message: str) -> str:
     """
     import re
     code_pattern = re.compile(r"```python\n([\s\S]*?)```")
-    match = code_pattern.search(message[-1].text.value)
+    match = code_pattern.search(message)
     if match:
         return match.group(1)
     else:
         print(message[-1].text.value)
         raise Exception("No code block found in the assistant's response.")
-import logging
+
 
 def send_message_to_assistant(assistant_id: str, thread_id: str, prompt: str) -> str:
     """
