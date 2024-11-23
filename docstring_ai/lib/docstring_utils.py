@@ -36,7 +36,7 @@ def extract_description_from_docstrings(code_with_docstrings: str) -> str:
     Raises:
         Exception: If there is an error while parsing the code or extracting descriptions.
     """
-    LOG.warning("Deprecated function: extract_description_from_docstrings, replaced by get_file_description")
+    LOG.warning("Deprecated function: extract_description_from_docstrings, replaced by generate_file_description")
     descriptions = []
     try:
         tree = ast.parse(code_with_docstrings)

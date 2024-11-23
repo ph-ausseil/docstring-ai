@@ -31,9 +31,9 @@ from docstring_ai.lib.prompt_utils import (
     update_assistant_tool_resources,
     create_thread,
     construct_few_shot_prompt,
-    get_file_description,
+    generate_file_description,
     add_docstrings_to_code,
-    get_file_description
+    generate_file_description
 )
 from docstring_ai.lib.chroma_utils import (
     initialize_chroma,
@@ -227,7 +227,7 @@ def process_files_and_create_prs(
         else:
             # **New Step: Get Detailed File Description Using Assistant's API**
             logging.info(f"Generating detailed description for {file_path}...")
-            file_description = get_file_description(
+            file_description = generate_file_description(
                 assistant_id=assistant_id,  # Modify as needed if using assistant objects
                 thread_id=thread_id, 
                 file_content=original_code
@@ -272,7 +272,7 @@ def process_files_and_create_prs(
 
                 # **New Step: Get Detailed File Description After Adding Docstrings**
                 logging.info(f"Generating updated description for {file_path} after adding docstrings...")
-                updated_file_description = get_file_description(
+                updated_file_description = generate_file_description(
                     assistant=None,  # Modify as needed if using assistant objects
                     thread_id=thread_id, 
                     file_content=modified_code
