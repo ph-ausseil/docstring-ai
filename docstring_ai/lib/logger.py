@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 import functools
 import time  # For simulation, remove in actual use
+from functools import wraps
+from tqdm import tqdm
 
 def show_file_progress(desc="Processing files", **kwargs):
     """
@@ -24,24 +26,19 @@ def show_file_progress(desc="Processing files", **kwargs):
         **kwargs: Additional arguments for tqdm customization.
     """
     def decorator(func):
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(files, *args, **func_kwargs):
             total_files = len(files)
+            results = []  # Store results from the decorated function
             
             with tqdm(total=total_files, desc=desc, unit="file", dynamic_ncols=True, **kwargs) as pbar:
-                processed_files = []
                 for file in files:
-                    func(file, *args, **func_kwargs)
+                    result = func(file, *args, **func_kwargs)
+                    results.append(result)  # Collect the results
                     
-                    # Track processed files
-                    processed_files.append(file)
-                    
-                    # Update the progress bar with custom postfix
-                    pbar.set_postfix({
-                        "Remaining time": f"{pbar.format_dict.get('remaining_time', 0):0>8.2f}s",
-                        "Speed": f"{(pbar.format_dict.get('elapsed', 0) / (pbar.n or 1)):.2f}s/file"
-                    })
+                    # Update the progress bar
                     pbar.update(1)
-                
+            
+            return results  # Return the collected results
         return wrapper
     return decorator
