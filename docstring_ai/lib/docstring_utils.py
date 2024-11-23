@@ -80,7 +80,7 @@ def extract_class_docstring(code: str, class_name: str) -> str:
 
 def parse_classes(file_path: str) -> Dict[str, List[str]]:
     """
-    Parse a Python file and return a dictionary of classes and their parent classes.
+    Parses a Python file and returns a dictionary of classes and their parent classes.
 
     This function reads a Python file and uses the Abstract Syntax Tree (AST) 
     to identify classes and their inherited parent classes. The result is a 

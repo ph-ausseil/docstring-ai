@@ -59,7 +59,7 @@ str: The name of the file used for caching purposes.
 
 This constant specifies the filename for storing cached data, which allows the application to efficiently 
 save and retrieve data. Utilizing caching enhances performance by avoiding redundant computations or 
-data retrievals, thereby reducing latency and improving responsiveness of operations.
+data retrievals, thereby reducing latency and improving the responsiveness of operations.
 """
 
 CONTEXT_SUMMARY_PATH = "context_summary.json"

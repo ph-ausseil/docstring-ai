@@ -180,7 +180,7 @@ def extract_code_from_message(message: str) -> str:
     if match:
         return match.group(1)
     else:
-        print(message[-1].text.value)
+        print(message)
         raise Exception("No code block found in the assistant's response.")
 
 
