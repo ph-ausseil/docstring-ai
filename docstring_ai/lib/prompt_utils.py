@@ -238,7 +238,7 @@ def send_message_to_assistant(
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=assistant_id,
-            response_format=BaseModel
+            response_format=response_format
         )
         if poll_run_completion(
             run_id=  run.id, 
