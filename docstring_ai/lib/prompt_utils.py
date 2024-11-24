@@ -227,7 +227,7 @@ def send_message_to_assistant(
             thread_id=thread_id,
             assistant_id=assistant_id,
             response_format=response_format,
-            tool_choice= tool_choice ,
+            tool_choice=tool_choice ,
             tools=ASSISTANTS_DEFAULT_TOOLS + tools 
             )
         if poll_run_completion(

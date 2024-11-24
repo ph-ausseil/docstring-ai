@@ -46,6 +46,7 @@ from docstring_ai.lib.chroma_utils import (
 )
 from docstring_ai.lib.docstring_utils import (
     parse_classes,
+    list_imports_from_package
     extract_class_docstring,
     extract_description_from_docstrings
 )
@@ -394,8 +395,11 @@ def process_single_file(
         file_description = cached_entry.get("description", "")
         logging.info(f"Using cached description for {file_path}.")
 
-    # Parse classes and identify dependencies
-    classes = parse_classes(file_path)
+
+    extractor = DocstringExtractor(file_path=file_path)
+    docstrings_dict = extractor.process()
+    classes = extractor.process_imports(package='docstring_ai.lib') 
+            
     if not classes:
         logging.warning(f"No classes found in {file_path}. Skipping context retrieval.")
         context = ""
@@ -478,13 +482,10 @@ def process_single_file(
             cache[relative_path] = new_hash
             logging.info(f"Updated cache for file: {file_path}")
 
-            # Store class summaries if any
-            modified_classes = parse_classes(file_path)
             for class_name in modified_classes.keys():
                 # Extract the docstring for each class
-                class_docstring = extract_class_docstring(modified_code, class_name)
                 if class_docstring:
-                    summary = class_docstring.strip().split('\n')[0]  # First line as summary
+                    summary = extractor.compile()  # First line as summary
                     store_class_summary(collection, relative_path, class_name, summary)
 
         except Exception as e:
