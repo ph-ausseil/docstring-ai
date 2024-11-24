@@ -97,7 +97,7 @@ def parse_classes(file_path: str) -> Dict[str, List[str]]:
     Raises:
         Exception: If there is an error during file reading or parsing.
     """
-    logging.notice(f"Parsing classes from : {file_path}")
+    logging.debug(f"Parsing classes from : {file_path}")
     classes = {}
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
