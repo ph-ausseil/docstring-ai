@@ -334,7 +334,7 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
             return False
         else:
             if not last_status or last_status != status:
-                logging.info(f"Run {run_id} status: {status}. Waiting for completion...")
+                logging.debug(f"Run {run_id} status: {status}. Waiting for completion...")
                 last_status = status
             time.sleep(RETRY_BACKOFF)
 
@@ -360,10 +360,10 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
 
 
     if hasattr(thread_messages[-1],'role') : 
-        logging.info(f"##### Success : ")
-        logging.info(f"role:{thread_messages[-1].role}")
-        logging.info(f"create_at:{thread_messages[-1].created_at}")
-        logging.info(f"status:{thread_messages[-1].status}\n")
+        logging.debug(f"##### Success : ")
+        logging.debug(f"role:{thread_messages[-1].role}")
+        logging.debug(f"create_at:{thread_messages[-1].created_at}")
+        logging.debug(f"status:{thread_messages[-1].status}\n")
     else :
         logging.error(f"##### Failure : ")
         logging.error(thread_messages)
