@@ -201,7 +201,9 @@ def send_message_to_assistant(
     assistant_id: str,
     thread_id: str,
     prompt: str,
-    response_format: BaseModel = None
+    response_format: BaseModel = None,
+    tools : List = [],
+    tool_choice = "auto"
     ) -> str:
     """
     Sends a prompt to the Assistant and retrieves the response.
@@ -220,29 +222,13 @@ def send_message_to_assistant(
             role="user",
             content=prompt,
         )
+
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=assistant_id,
             response_format=response_format,
-            tool_choice= {"type": "function", "function": {"name": "write_file_with_new_docstring"}},
-            tools=ASSISTANTS_DEFAULT_TOOLS + [
-                {"type": "function",
-                    "function": {
-                        "name": "write_file_with_new_docstring",
-                        "description": "Writes the updated Python file content with updated docstrings.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "new_file_content": {
-                                    "type": "string",
-                                    "description": "The complete content of the Python file with the updated docstrings."
-                                }
-                            },
-                            "required": ["new_file_content"]
-                        }
-                    }
-                }
-            ]
+            tool_choice= tool_choice ,
+            tools=ASSISTANTS_DEFAULT_TOOLS + tools 
             )
         if poll_run_completion(
             run_id=  run.id, 
@@ -312,6 +298,25 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
             assistant_id = assistant_id,
             thread_id = thread_id, 
             prompt = prompt,
+            tool_choice= {"type": "function", "function": {"name": "write_file_with_new_docstring"}},
+            tool = [
+                {"type": "function",
+                    "function": {
+                        "name": "write_file_with_new_docstring",
+                        "description": "Writes the updated Python file content with updated docstrings.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "new_file_content": {
+                                    "type": "string",
+                                    "description": "The complete content of the Python file with the updated docstrings."
+                                }
+                            },
+                            "required": ["new_file_content"]
+                        }
+                    }
+                }
+            ]
             )
         # response_format = {
         #     'type': 'json_schema',
