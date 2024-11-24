@@ -322,7 +322,7 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
         last_status = None
         status = current_run.status
         if status == 'completed':
-            logging.info(f"Run {run_id} completed.")
+            logging.debug(f"Run {run_id} completed.")
             # Ensure the thread has at least one assistant message
             last_message = retrieve_last_assistant_message(thread_id)
             if last_message:
