@@ -17,7 +17,22 @@ import subprocess
 import sys
 import logging
 import difflib
+from docstring_ai.lib.config import DOCSTRING_AI_TAG
 
+
+def ensure_docstring_header(content: str) -> str:
+    """
+    Ensures the content contains the docstring header. If not, prepends the header.
+
+    Args:
+        content (str): The content to be checked and potentially modified.
+
+    Returns:
+        str: The updated content with the docstring header ensured.
+    """
+    if DOCSTRING_AI_TAG not in content:
+        return DOCSTRING_AI_TAG + "\n" + content
+    return content
 
 def file_has_uncommitted_changes(repo_path: str, file_path: str) -> bool:
     """

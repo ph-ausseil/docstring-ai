@@ -15,6 +15,7 @@ import openai
 import datetime
 import tiktoken
 from docstring_ai.lib.utils import (
+    ensure_docstring_header,
     check_git_repo,
     has_uncommitted_changes,
     file_has_uncommitted_changes,
@@ -418,6 +419,8 @@ def process_single_file(
     process_single_file.last_modified_code = modified_code
 
     if modified_code and modified_code != original_code:
+        # Ensure the header is added if not present
+        modified_code = ensure_docstring_header(modified_code)
         # Show diff and ask for validation if manual flag is enabled
         if manual:
             diff = show_diff(original_code, modified_code)
