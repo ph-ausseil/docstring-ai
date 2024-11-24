@@ -397,7 +397,7 @@ def process_single_file(
     # Parse classes and identify dependencies
     classes = parse_classes(file_path)
     if not classes:
-        logging.info(f"No classes found in {file_path}. Skipping context retrieval.")
+        logging.warning(f"No classes found in {file_path}. Skipping context retrieval.")
         context = ""
     else:
         # Retrieve relevant context summaries from ChromaDB
@@ -422,7 +422,6 @@ def process_single_file(
 
     if hasattr(process_single_file, 'last_modified_code') and process_single_file.last_modified_code == modified_code:
         print(f"Old file path = {process_single_file.last_file_path}")
-        exit(f"file_path = {file_path}")
 
     process_single_file.last_file_path = file_path
     process_single_file.last_modified_code = modified_code
