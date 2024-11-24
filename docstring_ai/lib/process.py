@@ -223,7 +223,8 @@ def process_files_and_create_prs(
 
 
             # Open the file for writing
-            file_path = output_dir / Path(file)
+            file_path = Path(output_dir) / Path(file)
+            file_path.parent.mkdir(parents=True, exist_ok=True) 
             # Create a file with descriptions
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(file_description)
