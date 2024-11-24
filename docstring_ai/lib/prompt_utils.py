@@ -157,14 +157,19 @@ def construct_few_shot_prompt(
         Exception: If there is an error retrieving context or generating the prompt.
     """
     try:
-        context = get_relevant_context(collection, classes, max_tokens // 2)
-        if not context:
-            return ""
-        examples = (
-            "Here are some examples of Python classes with comprehensive docstrings:\n\n"
-            f"{context}"
-            "Now, please add appropriate docstrings to the following Python code:\n\n"
-        )
+        documents = get_relevant_context(collection, classes, max_tokens // 2)
+
+        examples = "You will be asked to generate dosctrings. To do so we will give you some example of python code as well as some contextual information.\n"
+
+        if documents:    
+            examples += "Python classes with comprehensive docstrings:\n\n"
+            examples +=f"{documents}\n\n"
+        if context: 
+            examples +="Contextual informations\n"
+            examples +=f"{context}\n\n"
+        
+        examples +="Please add appropriate docstrings to the following Python code:\n\n"
+
         return examples
     except Exception as e:
         logging.error(f"Error constructing few-shot prompt: {e}")

@@ -399,7 +399,7 @@ def process_single_file(
     classes = extractor.process_imports(package='docstring_ai.lib')    
     if not classes:
         logging.warning(f"No classes found in {file_path}. Skipping context retrieval.")
-        context = ""
+        context = file_description
     else:
         # Retrieve relevant context summaries from ChromaDB
         context = get_relevant_context(collection, classes, max_tokens=MAX_TOKENS // 2)  # Allocate half tokens to context
@@ -409,7 +409,7 @@ def process_single_file(
     few_shot_prompt = construct_few_shot_prompt(
         collection= collection, 
         classes=classes, 
-        max_tokens=MAX_TOKENS,
+        max_tokens=MAX_TOKENS - len(original_code),
         context= context
         )
 
