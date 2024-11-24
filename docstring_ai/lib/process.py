@@ -389,7 +389,7 @@ def process_single_file(
         return
 
     # Check if file is cached and has existing description
-    cached_entry = next((item for item in context_summary if item["file"] == relative_path), None)
+    cached_entry = next((item for item in context_summary if str(Path(item["file"])) == str(Path(relative_path))), None):
     if cached_entry:
         file_description = cached_entry.get("description", "")
         logging.info(f"Using cached description for {file_path}.")
