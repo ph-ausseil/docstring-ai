@@ -358,13 +358,15 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
         return None
 
 
-    print(f"@@@@@@@@@@@@@@@@@@@@@@@@n")
+
     if hasattr(thread_messages[-1],'role') : 
-        print(f"role:{thread_messages[-1].role}\n")
-        print(f"create_at:{thread_messages[-1].created_at}\n")
-        print(f"status:{thread_messages[-1].status}\n\n")
+        logging.info(f"##### Success : ")
+        logging.info(f"role:{thread_messages[-1].role}")
+        logging.info(f"create_at:{thread_messages[-1].created_at}")
+        logging.info(f"status:{thread_messages[-1].status}\n")
     else :
-        print(thread_messages)
+        logging.error(f"##### Failure : ")
+        logging.error(thread_messages)
 
     # try:
     #     extract_code_from_message(thread_messages[-1].content[-1].text.value)
