@@ -34,7 +34,7 @@ from docstring_ai.lib.prompt_utils import (
     update_assistant_tool_resources,
     create_thread,
     construct_few_shot_prompt,
-    add_docstrings,
+    get_code_with_docstrings,
     generate_file_description
 )
 from docstring_ai.lib.chroma_utils import (
@@ -415,7 +415,7 @@ def process_single_file(
 
     # Add docstrings using Assistant's API
     logging.info(f"Generating new docstrings for : {file_path}")
-    modified_code = add_docstrings(
+    modified_code = get_code_with_docstrings(
         assistant_id=assistant_id,
         thread_id=thread_id,
         code=original_code,

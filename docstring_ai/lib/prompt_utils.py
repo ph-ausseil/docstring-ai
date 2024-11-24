@@ -272,7 +272,7 @@ def generate_file_description(assistant_id: str, thread_id: str, file_content: s
     return send_message_to_assistant(
         assistant_id = assistant_id, thread_id = thread_id, prompt = prompt)
 
-def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -> str:
+def get_code_with_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -> str:
     """
     Adds docstrings to Python code using the Assistant.
 
