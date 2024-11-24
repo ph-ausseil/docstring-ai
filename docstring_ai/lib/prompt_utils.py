@@ -44,7 +44,7 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
         response = openai.beta.assistants.list()
         for assistant in response.data:
             if assistant.name == assistant_name:
-                logging.info(f"Assistant '{assistant_name}' found with ID: {assistant.id}")
+                logging.debug(f"Assistant '{assistant_name}' found with ID: {assistant.id}")
                 return assistant.id
 
         instructions = (
@@ -91,7 +91,7 @@ def update_assistant_tool_resources(api_key: str, assistant_id: str, file_ids: L
                 }
             }
         )
-        logging.info(f"Assistant '{assistant_id}' tool_resources updated with {len(file_ids)} files.")
+        logging.debug(f"Assistant '{assistant_id}' tool_resources updated with {len(file_ids)} files.")
     except Exception as e:
         logging.error(f"Error updating Assistant's tool_resources: {e}")
 
