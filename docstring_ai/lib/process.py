@@ -205,6 +205,9 @@ def process_files_and_create_prs(
         logging.error("Thread creation failed. Exiting.")
         return
 
+    # Ensure the './data/' directory exists
+    output_dir = Path('./data/')
+    output_dir.mkdir(parents=True, exist_ok=True)  # Creates the directory if it doesn't exist
     # Step 9 : Create Missing Context 
     file_descriptions_list = []
     for file in files_to_process: 
@@ -217,8 +220,12 @@ def process_files_and_create_prs(
                     file_content=f.read()
                 )
 
+
+
+            # Open the file for writing
+            file_path = output_dir / Path(file)
             # Create a file with descriptions
-            with open(Path('./data/') / Path(file) , 'w', encoding='utf-8') as f:
+            with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(file_description)
             file_descriptions_list.append(file_description)
 
