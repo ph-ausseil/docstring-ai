@@ -52,7 +52,7 @@ from docstring_ai.lib.utils import (
     prompt_user_confirmation,
 )
 from docstring_ai.lib.prompt_utils import add_docstrings
-
+from docstring_ai.lib.config import CACHE_FILE_NAME, CONTEXT_SUMMARY_PATH
 # Load environment variables from .env file
 load_dotenv()
 
@@ -64,10 +64,6 @@ def main():
     process of adding docstrings to Python files. It handles user input, 
     validates arguments, and orchestrates the docstring generation and 
     GitHub integration process.
-
-    It accepts command-line arguments related to file paths, OpenAI API key, 
-    GitHub repository information, and other configuration options for 
-    creating pull requests.
 
     Raises:
         SystemExit: If there are errors in argument parsing or invalid input.
@@ -86,7 +82,7 @@ def main():
     parser.add_argument("--pr-depth", type=int, default=2, help="Depth level for creating PRs per folder. Default is 2.")
     parser.add_argument("--manual", action="store_true", help="Enable manual validation circuits for review.")
     parser.add_argument("--help-flags", action="store_true", help="List and describe all available flags.")
-    parser.add_argument("--no-cache", help="Not-implemented : Execute the script without cached value.")
+    parser.add_argument("--no-cache", action="store_true", help="Execute the script without cached values.")
 
     # Parse arguments
     args = parser.parse_args()
@@ -100,10 +96,29 @@ def main():
         print("  --github-token   GitHub personal access token. Defaults to the GITHUB_TOKEN environment variable.")
         print("  --branch-name    Branch name for the PR. Auto-generated if not provided.")
         print("  --pr-name        Custom name for the pull request. Defaults to '-- Add docstrings for files in `path`'.")
-        print("  --pr-depth      Depth level for creating PRs per folder. Default is 2.")
+        print("  --pr-depth       Depth level for creating PRs per folder. Default is 2.")
         print("  --manual         Enable manual validation circuits for review.")
-        print("  --help-flags     List and describe all available flags.")
+        print("  --no-cache       Execute the script without cached values by deleting cache files.")
         return
+
+    # Handle the --no-cache flag
+    if args.no_cache:
+        # Paths for cache and context summary
+        cache_file = os.path.join(args.path, CACHE_FILE_NAME)
+        context_summary_file = os.path.join(args.path, CONTEXT_SUMMARY_PATH)
+
+        # Delete cache files if they exist
+        if os.path.exists(cache_file):
+            os.remove(cache_file)
+            print(f"Deleted cache file: {CACHE_FILE_NAME}")
+        else:
+            print(f"No cache file found: {CACHE_FILE_NAME}")
+
+        if os.path.exists(context_summary_file):
+            os.remove(context_summary_file)
+            print(f"Deleted context summary file: {CONTEXT_SUMMARY_PATH}")
+        else:
+            print(f"No context summary file found: {CONTEXT_SUMMARY_PATH}")
 
     # Retrieve API key
     api_key = args.api_key or os.getenv("OPENAI_API_KEY")
