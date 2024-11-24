@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 setup_logging()
 
 class PythonFile(BaseModel):
-    content: str = Field(description="The complete content of the Python file with the updated docstrings.")
+    content: str = Field(description="Updated python script with the updated docstrings.")
 
 def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant") -> str:
     """
@@ -251,6 +251,7 @@ def send_message_to_assistant(
         print(f"last_assistant_message : {last_assistant_message}")
         raise e
     except Exception as e:
+        print(f"Response format is : {response_format}")
         logging.error(f"Error during interaction with Assistant: {e}")
         return "Operation failed due to an API error."
 
@@ -306,22 +307,19 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
         thread_id = thread_id, 
         prompt = prompt,
         response_format = {
-            "name": "new_pyton_script",
-            "schema": {
-                "type": "object",
-                "properties": {
-                "content": {
-                    "type": "string",
-                    "description": "Updated python script with the updated docstrings."
+            'type': 'json_schema',
+            'json_schema' : {
+                'name': 'new_pyton_script',
+                'schema': {
+                    'type': 'object',
+                    'properties': {
+                        'content': {'type': 'string', 'description': 'Updated python script with the updated docstrings.'}
+                        },
+                    'required': ['content'],
+                    'additionalProperties': False
+                    },
+                'strict': True}
                 }
-                },
-                "required": [
-                "content"
-                ],
-                "additionalProperties": False
-            },
-            "strict": True
-            }
         )
     except: 
         print(f"Issue parssing the message {response}")

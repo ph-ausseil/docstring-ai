@@ -413,6 +413,7 @@ def process_single_file(
         )
 
     # Add docstrings using Assistant's API
+    logging.info(f"Generating new docstrings for : {file_path}")
     modified_code = add_docstrings(
         assistant_id=assistant_id,
         thread_id=thread_id,
