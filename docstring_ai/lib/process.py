@@ -397,20 +397,20 @@ def process_single_file(
     extractor = DocstringExtractor(file_path=file_path)
     extractor.process()
     classes = extractor.process_imports(package='docstring_ai.lib')    
-    if not classes:
-        logging.warning(f"No classes found in {file_path}. Skipping context retrieval.")
-        context = file_description
-    else:
-        # Retrieve relevant context summaries from ChromaDB
-        context = get_relevant_context(collection, classes, max_tokens=MAX_TOKENS // 2)  # Allocate half tokens to context
-        logging.info(f"Retrieved context with {len(tiktoken.get_encoding('gpt4').encode(context))} tokens.")
+    # if not classes:
+    #     logging.warning(f"No classes found in {file_path}. Skipping context retrieval.")
+    #     context = file_description
+    # else:
+    #     # Retrieve relevant context summaries from ChromaDB
+    #     context = get_relevant_context(collection, classes, max_tokens=MAX_TOKENS // 2)  # Allocate half tokens to context
+    #     logging.info(f"Retrieved context with {len(tiktoken.get_encoding('gpt4').encode(context))} tokens.")
 
     # Construct few-shot prompt
     few_shot_prompt = construct_few_shot_prompt(
         collection= collection, 
         classes=classes, 
         max_tokens=MAX_TOKENS - len(original_code),
-        context= context
+        context= file_description
         )
 
     # Add docstrings using Assistant's API
