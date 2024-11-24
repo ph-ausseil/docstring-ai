@@ -203,11 +203,18 @@ def process_files_and_create_prs(
         return
 
     # Update Assistant's tool resources with OpenAI file IDs
-    update_assistant_tool_resources(api_key, assistant_id, file_ids)
+    update_assistant_tool_resources(
+        api_key=api_key,
+        assistant_id=assistant_id,
+        file_ids=file_ids
+        )
 
     # Step 8: Create a Thread
     logging.info("\nCreating a new Thread...")
-    thread_id = create_thread(api_key, assistant_id)
+    thread_id = create_thread(
+        api_key=api_key, 
+        assistant_id=assistant_id
+        )
     if not thread_id:
         logging.error("Thread creation failed. Exiting.")
         return

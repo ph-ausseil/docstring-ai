@@ -75,7 +75,7 @@ Usage:
 DATA_PATH = Path('./data/')
 
 
-CACHE_FILE_NAME = DATA_PATH / Path("docstring_cache.json"  )
+CACHE_FILE_NAME = DATA_PATH + "docstring_cache.json"
 """
 str: The name of the file used for caching purposes.
 
@@ -87,7 +87,7 @@ Usage:
     Utilize this filename when implementing caching logic to store and retrieve data efficiently.
 """
 
-CONTEXT_SUMMARY_PATH = DATA_PATH /  Path("context_summary.json" )
+CONTEXT_SUMMARY_PATH = DATA_PATH + "context_summary.json" 
 """
 str: The path for storing context summaries.
 
