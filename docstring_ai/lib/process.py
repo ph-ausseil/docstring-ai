@@ -245,7 +245,6 @@ def process_files_and_create_prs(
                 "file": file,
                 "description": file_description
             })
-            logging.info(f"Description for {file}: {file_description}")
             # Append to context_summary for future use
 
     # TODO: Add context to both vector stores
@@ -528,9 +527,13 @@ def upload_files_to_openai(file_path):
         str: File ID from OpenAI or None on failure.
     """
     try:
-        with open(file_path, "rb") as f:
-            response = openai.files.create(
-                file=f,
+        # with open(file_path, "rb") as f:
+        #     response = openai.files.create(
+        #         file=f,
+        #         purpose="assistants"
+        #     )
+        response = openai.files.create(
+                file=file_path,
                 purpose="assistants"
             )
         return response.id  # Return the file ID
