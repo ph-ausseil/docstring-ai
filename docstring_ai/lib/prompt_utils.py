@@ -377,7 +377,7 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
         )
         last_status = None
         status = current_run.status
-        print(f"current run {current_run}")
+        #logging.debug(f"current run {current_run}")
         if status == 'completed':
             logging.debug(f"Run {run_id} completed.")
             # Ensure the thread has at least one assistant message
@@ -401,7 +401,7 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
                     tool_outputs=[
                         {
                         "tool_call_id": current_run.required_action.submit_tool_outputs.tool_calls[0].id,
-                        "output": True
+                        "output": ""
                         }
                     ]
                     )
