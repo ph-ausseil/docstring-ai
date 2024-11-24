@@ -214,8 +214,12 @@ def send_message_to_assistant(assistant_id: str, thread_id: str, prompt: str) ->
             run_id=  run.id, 
             thread_id=thread_id
             ):
-            return retrieve_last_assistant_message(thread_id)[-1].text.value
+            last_assistant_message = retrieve_last_assistant_message(thread_id)
+            return last_assistant_message[-1].text.value
         return "Operation failed due to incomplete run."
+    except IndexError as e:
+        print(f"last_assistant_message : {last_assistant_message}")
+        raise e
     except Exception as e:
         logging.error(f"Error during interaction with Assistant: {e}")
         return "Operation failed due to an API error."
