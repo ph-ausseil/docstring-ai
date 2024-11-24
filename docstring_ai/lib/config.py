@@ -127,39 +127,35 @@ class ColoredFormatter(logging.Formatter):
         record.levelname = f"{color}{record.levelname}{self.RESET}"
         return super().format(record)
 
+class ExcludeLibrariesFilter(logging.Filter):
+    def filter(self, record):
+        excluded_modules = ['_client', 'openai', 'urllib3', 'http.client']
+        return not any(record.name.startswith(module) for module in excluded_modules)
+
+class HTTPRequestFilter(logging.Filter):
+    def filter(self, record):
+        # Exclude HTTP request logs
+        return 'HTTP Request:' not in record.getMessage()
+
 def setup_logging():
-    """
-    Configures logging for the entire application with color-coded output.
-    Suppresses logging messages from certain libraries like OpenAI, urllib3, and http.client.
-    """
-    # Define custom formatter with colors
     formatter = ColoredFormatter(
         '%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
     )
-
-    # Create console handler with the custom formatter
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
 
-    # Configure root logger
     logging.basicConfig(
         level=logging.INFO,
         handlers=[console_handler]
     )
 
-
     # Suppress logs from specific libraries
+    logging.getLogger("_client").setLevel(logging.WARNING)
     logging.getLogger("openai").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("http.client").setLevel(logging.WARNING)
-    logging.getLogger("_client").setLevel(logging.WARNING)
 
-    # Optional: Add filter to suppress further logs
-    class ExcludeLibrariesFilter(logging.Filter):
-        def filter(self, record):
-            excluded_modules = ['openai', 'urllib3', 'http.client', '_client']
-            return not any(record.name.startswith(module) for module in excluded_modules)
-
+    # Apply filters to suppress specific logs
     for handler in logging.root.handlers:
         handler.addFilter(ExcludeLibrariesFilter())
-
+        handler.addFilter(HTTPRequestFilter())
