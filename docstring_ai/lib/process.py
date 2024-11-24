@@ -46,8 +46,7 @@ from docstring_ai.lib.chroma_utils import (
 )
 from docstring_ai.lib.docstring_utils import (
     parse_classes,
-    list_imports_from_package
-    extract_class_docstring,
+    DocstringExtractor,
     extract_description_from_docstrings
 )
 from docstring_ai.lib.github_utils import create_github_pr
@@ -390,16 +389,14 @@ def process_single_file(
         return
 
     # Check if file is cached and has existing description
-    cached_entry = next((item for item in context_summary if str(Path(item["file"])) == str(Path(relative_path))), None):
+    cached_entry = next((item for item in context_summary if str(Path(item["file"])) == str(Path(relative_path))), None)
     if cached_entry:
         file_description = cached_entry.get("description", "")
         logging.info(f"Using cached description for {file_path}.")
 
-
     extractor = DocstringExtractor(file_path=file_path)
-    docstrings_dict = extractor.process()
-    classes = extractor.process_imports(package='docstring_ai.lib') 
-            
+    extractor.process()
+    classes = extractor.process_imports(package='docstring_ai.lib')    
     if not classes:
         logging.warning(f"No classes found in {file_path}. Skipping context retrieval.")
         context = ""
