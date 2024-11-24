@@ -259,6 +259,7 @@ def send_message_to_assistant(
         logging.error(f"Error during interaction with Assistant: {e}")
         return "Operation failed due to an API error."
 
+
 def generate_file_description(assistant_id: str, thread_id: str, file_content: str) -> str:
     """
     Generates a detailed description of a Python file using the Assistant.
@@ -376,6 +377,7 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
         )
         last_status = None
         status = current_run.status
+        print(f"current run {current_run}")
         if status == 'completed':
             logging.debug(f"Run {run_id} completed.")
             # Ensure the thread has at least one assistant message
