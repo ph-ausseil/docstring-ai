@@ -58,6 +58,17 @@ from docstring_ai import (
     CONTEXT_SUMMARY_PATH
     )
 
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
+)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)  # OpenAI uses urllib3 for HTTP requests
+logging.getLogger("http.client").setLevel(logging.WARNING)  # For detailed HTTP client logs
+
+
 def process_files_and_create_prs(
     repo_path: str, 
     api_key: str, 

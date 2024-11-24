@@ -318,6 +318,7 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
             run_id=run_id,
             thread_id=thread_id
         )
+        last_status = None
         status = current_run.status
         if status == 'completed':
             logging.info(f"Run {run_id} completed.")
@@ -331,7 +332,9 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
             logging.error(f"Run {run_id} ended with status: {status}")
             return False
         else:
-            logging.info(f"Run {run_id} status: {status}. Waiting for completion...")
+            if not last_status or last_status == status:
+                logging.info(f"Run {run_id} status: {status}. Waiting for completion...")
+                last_status = status
             time.sleep(RETRY_BACKOFF)
 
 

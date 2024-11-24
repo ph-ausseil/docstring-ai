@@ -48,7 +48,7 @@ Usage:
     Modify this value to adjust the application's tolerance for transient errors during API interactions.
 """
 
-RETRY_BACKOFF = 3  
+RETRY_BACKOFF = 5  
 """
 int: The time, in seconds, to wait before retrying after a failed API request.
 
