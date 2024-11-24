@@ -58,17 +58,6 @@ from docstring_ai import (
     CONTEXT_SUMMARY_PATH
     )
 
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
-)
-logging.getLogger("openai").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)  # OpenAI uses urllib3 for HTTP requests
-logging.getLogger("http.client").setLevel(logging.WARNING)  # For detailed HTTP client logs
-
-
 def process_files_and_create_prs(
     repo_path: str, 
     api_key: str, 
@@ -538,13 +527,9 @@ def upload_files_to_openai(file_path):
         str: File ID from OpenAI or None on failure.
     """
     try:
-        # with open(file_path, "rb") as f:
-        #     response = openai.files.create(
-        #         file=f,
-        #         purpose="assistants"
-        #     )
-        response = openai.files.create(
-                file=file_path,
+        with open(file_path, "rb") as f:
+            response = openai.files.create(
+                file=f,
                 purpose="assistants"
             )
         return response.id  # Return the file ID

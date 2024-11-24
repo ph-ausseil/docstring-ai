@@ -18,8 +18,9 @@ import chromadb
 from docstring_ai.lib.chroma_utils import get_relevant_context
 import logging
 from typing import List, Dict
-from docstring_ai.lib.config import MODEL, RETRY_BACKOFF
+from docstring_ai.lib.config import MODEL, RETRY_BACKOFF, setup_logging
 
+setup_logging()
 
 def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant") -> str:
     """

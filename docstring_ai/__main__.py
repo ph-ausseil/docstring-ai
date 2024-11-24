@@ -52,17 +52,11 @@ from docstring_ai.lib.utils import (
     prompt_user_confirmation,
 )
 from docstring_ai.lib.prompt_utils import add_docstrings
-from docstring_ai.lib.config import CACHE_FILE_NAME, CONTEXT_SUMMARY_PATH
+from docstring_ai.lib.config import CACHE_FILE_NAME, CONTEXT_SUMMARY_PATH, setup_logging
+
 # Load environment variables from .env file
 load_dotenv()
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
-)
-logging.getLogger("openai").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)  # OpenAI uses urllib3 for HTTP requests
-logging.getLogger("http.client").setLevel(logging.WARNING)  # For detailed HTTP client logs
+setup_logging()
 
 
 def main():
