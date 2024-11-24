@@ -164,6 +164,7 @@ def process_files_and_create_prs(
 
     # Load Context Summary
     context_summary_full_path = os.path.join(repo_path, CONTEXT_SUMMARY_PATH)
+    context_summary = []  # Initialize context_summary as an empty list by default
     if os.path.exists(context_summary_full_path):
         try:
             with open(context_summary_full_path, 'r', encoding='utf-8') as f:
@@ -171,7 +172,6 @@ def process_files_and_create_prs(
             logging.info(f"Loaded context summary with {len(context_summary)} entries.")
         except Exception as e:
             logging.error(f"Error loading context summary: {e}")
-            context_summary = []
 
     # Step 5: Embed and store files in ChromaDB
     logging.info("\nEmbedding and storing Python files in ChromaDB...")
@@ -208,7 +208,7 @@ def process_files_and_create_prs(
     # Step 9 : Create Missing Context 
     file_descriptions_list = []
     for file in files_to_process: 
-        if not any(entry["file"] == file for entry in context_summary) : 
+        if not any(entry["file"] == file for entry in context_summary): 
             logging.info(f"Generating detailed description for {file}...")
             with open(file, 'r', encoding='utf-8') as f:
                 file_description = generate_file_description(
@@ -218,7 +218,7 @@ def process_files_and_create_prs(
                 )
 
             # Create a file with descriptions
-            with open(Path('./data/') / Path(file_path) , 'w', encoding='utf-8') as f:
+            with open(Path('./data/') / Path(file) , 'w', encoding='utf-8') as f:
                 f.write(file_description)
             file_descriptions_list.append(file_description)
 
@@ -508,7 +508,7 @@ def upload_files_to_openai(file_path):
     """
     try:
         with open(file_path, "rb") as f:
-            response = openai.File.create(
+            response = openai.files.create(
                 file=f,
                 purpose="assistants"
             )
