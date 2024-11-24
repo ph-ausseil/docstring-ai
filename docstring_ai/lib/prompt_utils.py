@@ -224,6 +224,7 @@ def send_message_to_assistant(
             thread_id=thread_id,
             assistant_id=assistant_id,
             response_format=response_format,
+            tool_choice= {"type": "function", "function": {"name": "write_file_with_new_docstring"}},
             tools=ASSISTANTS_DEFAULT_TOOLS + [
                 {"type": "function",
                     "function": {
