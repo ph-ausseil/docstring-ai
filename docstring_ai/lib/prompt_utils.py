@@ -312,7 +312,7 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
                 "properties": {
                 "content": {
                     "type": "string",
-                    "description": "New Python script with the updated docstrings."
+                    "description": "Updated python script with the updated docstrings."
                 }
                 },
                 "required": [
