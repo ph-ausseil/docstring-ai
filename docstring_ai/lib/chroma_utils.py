@@ -85,6 +85,7 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
     documents = []
     metadatas = []
     for file_path in python_files:
+        file_path = str(file_path)
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()

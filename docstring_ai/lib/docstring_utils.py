@@ -100,7 +100,9 @@ def parse_classes(file_path: str) -> Dict[str, List[str]]:
     classes = {}
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            tree = ast.parse(f.read(), filename=file_path)
+            file_content = f.read()
+        
+        tree = ast.parse(file_content, filename=file_path)
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 parent_classes = [
@@ -110,5 +112,7 @@ def parse_classes(file_path: str) -> Dict[str, List[str]]:
                 ]
                 classes[node.name] = parent_classes
     except Exception as e:
+        print(file_content)
         logging.error(f"Error parsing classes in {file_path}: {e}")
+        exit()
     return classes

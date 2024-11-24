@@ -532,6 +532,7 @@ def upload_files_to_openai(file_path):
                 file=f,
                 purpose="assistants"
             )
+        logging.info(f"Updated file : {file_path}")
         return response.id  # Return the file ID
     except Exception as e:
         logging.error(f"Error uploading {file_path} to OpenAI: {e}")
