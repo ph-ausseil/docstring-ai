@@ -128,7 +128,7 @@ def construct_few_shot_prompt(
     collection: chromadb.Collection,
     classes: Dict[str, List[str]],
     max_tokens: int,
-    content: str = None
+    context: str = None
     ) -> str:
     """
     Constructs a few-shot prompt using context summaries from ChromaDB.
