@@ -127,11 +127,11 @@ class ColoredFormatter(logging.Formatter):
         record.levelname = f"{color}{record.levelname}{self.RESET}"
         return super().format(record)
 
+
+EXCLUDED_LOG_MODULES = ['_client', 'openai', 'urllib3', 'http.client', 'httpx']
 class ExcludeLibrariesFilter(logging.Filter):
     def filter(self, record):
-        excluded_modules = ['_client', 'openai', 'urllib3', 'http.client']
-        print(record)
-        return not any(record.name.startswith(module) for module in excluded_modules)
+        return not any(record.name.startswith(module) for module in EXCLUDED_LOG_MODULES)
 
 class HTTPRequestFilter(logging.Filter):
     def filter(self, record):
@@ -151,10 +151,8 @@ def setup_logging():
     )
 
     # Suppress logs from specific libraries
-    logging.getLogger("_client").setLevel(logging.WARNING)
-    logging.getLogger("openai").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
-    logging.getLogger("http.client").setLevel(logging.WARNING)
+    for module in EXCLUDED_LOG_MODULES : 
+        logging.getLogger(module).setLevel(logging.WARNING)
 
     # Apply filters to suppress specific logs
     for handler in logging.root.handlers:
