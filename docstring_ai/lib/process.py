@@ -459,7 +459,7 @@ def process_single_file(
                 thread_id=thread_id, 
                 file_content=modified_code
             )
-            logging.info(f"Updated description for {file_path}: {updated_file_description}")
+            logging.info(f"Updated description for {file_path}")
 
             # Update context_summary with the updated description
             if cached_entry:
