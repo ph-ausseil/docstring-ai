@@ -61,6 +61,9 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
 )
 logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)  # OpenAI uses urllib3 for HTTP requests
+logging.getLogger("http.client").setLevel(logging.WARNING)  # For detailed HTTP client logs
+
 
 def main():
     """
