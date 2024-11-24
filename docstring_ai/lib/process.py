@@ -248,16 +248,16 @@ def process_files_and_create_prs(
             # Append to context_summary for future use
 
     # TODO: Add context to both vector stores
-    # Step 5: Embed and store files in ChromaDB
+    # Step 10: Embed and store files in ChromaDB
     logging.info("\nEmbedding and storing Python files in ChromaDB...")
     embed_and_store_files(collection, file_descriptions_list)
 
-    # Step 6: Upload files to OpenAI and update Assistant's tool resources
+    # Step 11: Upload files to OpenAI and update Assistant's tool resources
     logging.info("\nUploading files to OpenAI...")
     file_ids.extend(upload_files_to_openai(file_descriptions_list))
     update_assistant_tool_resources(api_key, assistant_id, file_ids)
  
-    # Step 9: Process Each Python File for Docstrings using the decorated function
+    # Step 12: Process Each Python File for Docstrings using the decorated function
     logging.info("\nProcessing Python files to add docstrings...")
     process_single_file(
         files=files_to_process,

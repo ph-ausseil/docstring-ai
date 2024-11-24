@@ -23,6 +23,10 @@ from pydantic import BaseModel, Field
 
 setup_logging()
 
+ASSISTANTS_DEFAULT_TOOLS = [
+                {"type": "code_interpreter"}, 
+                {"type": "file_search"},
+            ]
 class PythonFile(BaseModel):
     content: str = Field(description="Updated python script with the updated docstrings.")
 
@@ -60,26 +64,7 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
             name=assistant_name,
             description="Assistant to add docstrings to Python files.",
             model=MODEL,
-            tools=[
-                {"type": "code_interpreter"}, 
-                {"type": "file_search"},
-                # {"type": "function",
-                #     "function": {
-                #         "name": "write_file_with_new_docstring",
-                #         "description": "Writes the updated Python file content with new docstrings.",
-                #         "parameters": {
-                #             "type": "object",
-                #             "properties": {
-                #                 "new_file_content": {
-                #                     "type": "string",
-                #                     "description": "The complete content of the Python file with the updated docstrings."
-                #                 }
-                #             },
-                #             "required": ["new_file_content"]
-                #         }
-                #     }
-                # }
-            ],
+            tools=ASSISTANTS_DEFAULT_TOOLS,
             instructions=instructions
         )
         logging.info(f"Assistant '{assistant_name}' created with ID: {assistant.id}")
@@ -238,8 +223,26 @@ def send_message_to_assistant(
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=assistant_id,
-            response_format=response_format
-        )
+            response_format=response_format,
+            tools=ASSISTANTS_DEFAULT_TOOLS + [
+                {"type": "function",
+                    "function": {
+                        "name": "write_file_with_new_docstring",
+                        "description": "Writes the updated Python file content with updated docstrings.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "new_file_content": {
+                                    "type": "string",
+                                    "description": "The complete content of the Python file with the updated docstrings."
+                                }
+                            },
+                            "required": ["new_file_content"]
+                        }
+                    }
+                }
+            ]
+            )
         if poll_run_completion(
             run_id=  run.id, 
             thread_id=thread_id
@@ -306,27 +309,27 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
         response = send_message_to_assistant(assistant_id = assistant_id,
         thread_id = thread_id, 
         prompt = prompt,
-        response_format = {
-            'type': 'json_schema',
-            'json_schema' : {
-                'name': 'new_pyton_script',
-                'schema': {
-                    'type': 'object',
-                    'properties': {
-                        'content': {'type': 'string', 'description': 'Updated python script with the updated docstrings.'}
-                        },
-                    'required': ['content'],
-                    'additionalProperties': False
-                    },
-                'strict': True}
-                }
+        # response_format = {
+        #     'type': 'json_schema',
+        #     'json_schema' : {
+        #         'name': 'new_pyton_script',
+        #         'schema': {
+        #             'type': 'object',
+        #             'properties': {
+        #                 'content': {'type': 'string', 'description': 'Updated python script with the updated docstrings.'}
+        #                 },
+        #             'required': ['content'],
+        #             'additionalProperties': False
+        #             },
+        #         'strict': True}
+        #         }
         )
     except: 
         print(f"Issue parssing the message {response}")
         raise Exception(e)
 
     if response:
-        print(response)
+        logging.info(f"The Response is : {response}")
         return extract_code_from_message(response).replace('` ``', '```')
     return None
 
