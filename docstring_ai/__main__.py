@@ -56,6 +56,12 @@ from docstring_ai.lib.config import CACHE_FILE_NAME, CONTEXT_SUMMARY_PATH
 # Load environment variables from .env file
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
+)
+logging.getLogger("openai").setLevel(logging.WARNING)
+
 def main():
     """
     The main function that serves as the entry point of the script.
