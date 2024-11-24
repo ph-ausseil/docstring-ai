@@ -8,6 +8,7 @@ from chromadb.utils import embedding_functions
 import tiktoken
 from typing import List, Dict
 from docstring_ai import EMBEDDING_MODEL
+import traceback
 
 
 def initialize_chroma() -> chromadb.Client:
@@ -97,6 +98,19 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
         except Exception as e:
             logging.error(f"Error reading file {file_path}: {e}")
 
+    # Validation
+    if not (len(documents) == len(ids) == len(metadatas)):
+        logging.error("Length mismatch between documents, ids, and metadatas.")
+        return
+
+    if any(not doc for doc in documents):
+        logging.error("One or more documents are empty.")
+        return
+
+    if len(ids) != len(set(ids)):
+        logging.error("Duplicate IDs found in the documents to be added.")
+        return
+
     # Add to ChromaDB
     try:
         collection.add(
@@ -107,6 +121,7 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
         logging.info(f"Embedded and stored {len(ids)} files in ChromaDB.")
     except Exception as e:
         logging.error(f"Error adding documents to ChromaDB: {e}")
+        logging.error(traceback.format_exc())
 
 
 def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, List[str]], max_tokens: int) -> str:
@@ -131,7 +146,8 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
         encoder = tiktoken.get_encoding("gpt-4o")
         context = ""
         token_count = 0
-        query = classes.join(" ")
+        # Corrected join operation
+        query = " ".join(classes.keys())
         results = collection.query(
                 query_texts=[query],
                 n_results=5  # Adjust based on desired breadth
@@ -153,9 +169,9 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
         return context
     except Exception as e: 
         print(classes)
-        logging.error("Error guilding the prompt")
+        logging.error("Error guiding the prompt")
+        logging.error(traceback.format_exc())
         raise e
-        
 
 
 def store_class_summary(collection: chromadb.Collection, file_path: str, class_name: str, summary: str) -> None:
@@ -188,3 +204,4 @@ def store_class_summary(collection: chromadb.Collection, file_path: str, class_n
         logging.info(f"Stored summary for class '{class_name}' in ChromaDB.")
     except Exception as e:
         logging.error(f"Error storing class summary for '{class_name}': {e}")
+        logging.error(traceback.format_exc())
