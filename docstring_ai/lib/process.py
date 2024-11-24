@@ -234,7 +234,7 @@ def process_files_and_create_prs(
                     file_content=f.read()
                 )
 
-            file_path = Path(output_dir) / Path(file).with_suffix('.log')
+            file_path = Path(output_dir) / Path(file).with_suffix('.txt')
             file_path.parent.mkdir(parents=True, exist_ok=True) 
             # Create a file with descriptions
             with open(file_path, 'w', encoding='utf-8') as f:
