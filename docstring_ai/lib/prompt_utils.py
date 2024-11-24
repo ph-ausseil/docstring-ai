@@ -124,7 +124,12 @@ def create_thread(api_key: str, assistant_id: str, initial_messages: List[dict] 
         return None
 
 
-def construct_few_shot_prompt(collection: chromadb.Collection, classes: Dict[str, List[str]], max_tokens: int) -> str:
+def construct_few_shot_prompt(
+    collection: chromadb.Collection,
+    classes: Dict[str, List[str]],
+    max_tokens: int,
+    content: str = None
+    ) -> str:
     """
     Constructs a few-shot prompt using context summaries from ChromaDB.
 
