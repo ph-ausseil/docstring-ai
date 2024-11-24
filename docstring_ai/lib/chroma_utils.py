@@ -127,15 +127,22 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
     Example:
         context = get_relevant_context(collection, classes, max_tokens)
     """
-    encoder = tiktoken.get_encoding("gpt2")
-    context = ""
-    token_count = 0
-    for class_name, parents in classes.items():
-        query = f"{class_name} " + " ".join(parents)
+    try: 
+        encoder = tiktoken.get_encoding("gpt4")
+        context = ""
+        token_count = 0
+        query = classes.join(" ")
         results = collection.query(
-            query_texts=[query],
-            n_results=5  # Adjust based on desired breadth
-        )
+                query_texts=[query],
+                n_results=5  # Adjust based on desired breadth
+            )
+        
+        # for class_name, parents in classes:
+            # query = f"{class_name} " + " ".join(parents)
+            # results = collection.query(
+            #     query_texts=[query],
+            #     n_results=5  # Adjust based on desired breadth
+            # )
         for doc in results['documents'][0]:
             doc_tokens = len(encoder.encode(doc))
             if token_count + doc_tokens > max_tokens:
@@ -143,7 +150,12 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
                 return context
             context += doc + "\n\n"
             token_count += doc_tokens
-    return context
+        return context
+    except Exception as e: 
+        print(classes)
+        logging.error("Error guilding the prompt")
+        raise e
+        
 
 
 def store_class_summary(collection: chromadb.Collection, file_path: str, class_name: str, summary: str) -> None:

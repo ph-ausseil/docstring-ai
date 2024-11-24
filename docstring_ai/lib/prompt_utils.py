@@ -168,8 +168,6 @@ def construct_few_shot_prompt(
             examples +="Contextual informations\n"
             examples +=f"{context}\n\n"
         
-        examples +="Please add appropriate docstrings to the following Python code:\n\n"
-
         return examples
     except Exception as e:
         logging.error(f"Error constructing few-shot prompt: {e}")
@@ -288,7 +286,7 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
         str: The code with added docstrings, or None if an error occurs.
     """
     escaped_code = code.replace('```', '` ``')
-    prompt = (
+    prompt = str(context) + (
         "Please add appropriate docstrings to the following Python code. "
         "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
         "```python\n"
