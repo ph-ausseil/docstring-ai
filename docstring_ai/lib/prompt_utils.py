@@ -333,7 +333,7 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
             logging.error(f"Run {run_id} ended with status: {status}")
             return False
         else:
-            if not last_status or last_status == status:
+            if not last_status or last_status != status:
                 logging.info(f"Run {run_id} status: {status}. Waiting for completion...")
                 last_status = status
             time.sleep(RETRY_BACKOFF)
