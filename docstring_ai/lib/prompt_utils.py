@@ -305,12 +305,30 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
         response = send_message_to_assistant(assistant_id = assistant_id,
         thread_id = thread_id, 
         prompt = prompt,
-        response_format = PythonFile.schema())
-    except : 
+        response_format = {
+            "name": "new_pyton_script",
+            "schema": {
+                "type": "object",
+                "properties": {
+                "content": {
+                    "type": "string",
+                    "description": "New Python script with the updated docstrings."
+                }
+                },
+                "required": [
+                "content"
+                ],
+                "additionalProperties": False
+            },
+            "strict": True
+            }
+        )
+    except: 
         print(f"Issue parssing the message {response}")
         raise Exception(e)
 
     if response:
+        print(response)
         return extract_code_from_message(response).replace('` ``', '```')
     return None
 
