@@ -305,7 +305,7 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
         response = send_message_to_assistant(assistant_id = assistant_id,
         thread_id = thread_id, 
         prompt = prompt,
-        response_format = PythonFile)
+        response_format = PythonFile.schema())
     except : 
         print(f"Issue parssing the message {response}")
         raise Exception(e)
