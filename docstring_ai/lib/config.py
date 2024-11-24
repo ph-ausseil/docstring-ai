@@ -1,3 +1,4 @@
+from pathlib import Path 
 # Constants
 
 MODEL = "gpt-4o-mini"  
@@ -71,7 +72,10 @@ Usage:
     Use this name when accessing or manipulating the ChromaDB collection for context storage.
 """
 
-CACHE_FILE_NAME = "docstring_cache.json"  
+DATA_PATH = Path('./data/')
+
+
+CACHE_FILE_NAME = DATA_PATH / Path("docstring_cache.json"  )
 """
 str: The name of the file used for caching purposes.
 
@@ -83,7 +87,7 @@ Usage:
     Utilize this filename when implementing caching logic to store and retrieve data efficiently.
 """
 
-CONTEXT_SUMMARY_PATH = "context_summary.json"
+CONTEXT_SUMMARY_PATH = DATA_PATH /  Path("context_summary.json" )
 """
 str: The path for storing context summaries.
 

@@ -50,7 +50,13 @@ from docstring_ai.lib.docstring_utils import (
     extract_description_from_docstrings
 )
 from docstring_ai.lib.github_utils import create_github_pr
-from docstring_ai import MAX_TOKENS, CHROMA_COLLECTION_NAME, CACHE_FILE_NAME, CONTEXT_SUMMARY_PATH
+from docstring_ai import (
+    MAX_TOKENS, 
+    CHROMA_COLLECTION_NAME, 
+    CACHE_FILE_NAME, 
+    DATA_PATH, 
+    CONTEXT_SUMMARY_PATH
+    )
 
 def process_files_and_create_prs(
     repo_path: str, 
@@ -207,7 +213,7 @@ def process_files_and_create_prs(
         return
 
     # Ensure the './data/' directory exists
-    output_dir = Path('./data/')
+    output_dir = DATA_PATH
     output_dir.mkdir(parents=True, exist_ok=True)  # Creates the directory if it doesn't exist
     # Step 9 : Create Missing Context 
     file_descriptions_list = []
@@ -221,10 +227,7 @@ def process_files_and_create_prs(
                     file_content=f.read()
                 )
 
-
-
-            # Open the file for writing
-            file_path = Path(output_dir) / Path(file)
+            file_path = Path(output_dir) / Path(file).with_suffix('.log')
             file_path.parent.mkdir(parents=True, exist_ok=True) 
             # Create a file with descriptions
             with open(file_path, 'w', encoding='utf-8') as f:

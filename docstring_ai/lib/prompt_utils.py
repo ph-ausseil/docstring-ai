@@ -362,14 +362,14 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
     else :
         print(thread_messages)
 
-    try:
-        extract_code_from_message(thread_messages[-1].content[-1].text.value)
-    except Exception:
-        print("Error : last 5 messsages ")
-        for message in thread_messages[-5]:
-            print(f"#######################")
-            print(f"role:{message.role}")
-            print(f"create_at:{message.created_at}")
-            print(f"status:{message.status}\n")
+    # try:
+    #     extract_code_from_message(thread_messages[-1].content[-1].text.value)
+    # except Exception:
+    #     print("Error : last 5 messsages ")
+    #     for message in thread_messages[-5]:
+    #         print(f"#######################")
+    #         print(f"role:{message.role}")
+    #         print(f"create_at:{message.created_at}")
+    #         print(f"status:{message.status}\n")
     return thread_messages[-1].content
 

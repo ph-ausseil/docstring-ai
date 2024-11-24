@@ -17,7 +17,7 @@ import subprocess
 import sys
 import logging
 import difflib
-from docstring_ai.lib.config import DOCSTRING_AI_TAG
+from docstring_ai.lib.config import DOCSTRING_AI_TAG , DATA_PATH
 
 
 def ensure_docstring_header(content: str) -> str:
