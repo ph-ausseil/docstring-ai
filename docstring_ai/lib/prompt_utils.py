@@ -306,9 +306,11 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
         prompt = f"{context}\n\n" + prompt
 
     try :
-        response = send_message_to_assistant(assistant_id = assistant_id,
-        thread_id = thread_id, 
-        prompt = prompt,
+        response = send_message_to_assistant(
+            assistant_id = assistant_id,
+            thread_id = thread_id, 
+            prompt = prompt,
+            )
         # response_format = {
         #     'type': 'json_schema',
         #     'json_schema' : {
@@ -323,8 +325,8 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
         #             },
         #         'strict': True}
         #         }
-        )
-    except: 
+        
+    except Exception as e: 
         print(f"Issue parssing the message {response}")
         raise Exception(e)
 
