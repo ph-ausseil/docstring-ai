@@ -386,6 +386,18 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
                 return True
             logging.error("Run completed, but no assistant response available.")
             return False
+        elif (status == "requires_action") :
+            run = openai.beta.threads.runs.submit_tool_outputs(
+                thread_id=thread_id,
+                run_id=run_id,
+                tool_outputs=[
+                    {
+                    "tool_call_id": current_run.required_action.submit_tool_outputs.tool_calls[0].id,
+                    "output": True
+                    }
+                ]
+                )
+        
         elif status in ['failed', 'expired', 'cancelled']:
             logging.error(f"Run {run_id} ended with status: {status}")
             return False
