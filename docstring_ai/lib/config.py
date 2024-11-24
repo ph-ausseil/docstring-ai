@@ -131,7 +131,6 @@ class ColoredFormatter(logging.Formatter):
 EXCLUDED_LOG_MODULES = ['_client', 'openai', 'urllib3', 'http.client', 'httpx','_trace' , 'httpcore' , 'chromadb.config', 'httpcore.connection' , 'httpcore.http11']
 class ExcludeLibrariesFilter(logging.Filter):
     def filter(self, record):
-        print(record.name)
         return not any(record.name.startswith(module) for module in EXCLUDED_LOG_MODULES)
 
 class HTTPRequestFilter(logging.Filter):
