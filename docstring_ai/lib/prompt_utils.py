@@ -299,7 +299,7 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
             thread_id = thread_id, 
             prompt = prompt,
             tool_choice= {"type": "function", "function": {"name": "write_file_with_new_docstring"}},
-            tool = [
+            tools = [
                 {"type": "function",
                     "function": {
                         "name": "write_file_with_new_docstring",
@@ -339,7 +339,7 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
 
     if response:
         logging.info(f"The Response is : {response}")
-        return extract_code_from_message(response).replace('` ``', '```')
+        return response
     return None
 
 
