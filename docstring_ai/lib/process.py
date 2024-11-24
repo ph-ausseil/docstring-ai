@@ -239,7 +239,7 @@ def process_files_and_create_prs(
             # Create a file with descriptions
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(file_description)
-            file_descriptions_list.append(file_description)
+            file_descriptions_list.append(file_path)
 
             context_summary.append({
                 "file": file,

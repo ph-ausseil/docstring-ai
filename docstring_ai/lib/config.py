@@ -130,6 +130,7 @@ class ColoredFormatter(logging.Formatter):
 class ExcludeLibrariesFilter(logging.Filter):
     def filter(self, record):
         excluded_modules = ['_client', 'openai', 'urllib3', 'http.client']
+        print(record)
         return not any(record.name.startswith(module) for module in excluded_modules)
 
 class HTTPRequestFilter(logging.Filter):
