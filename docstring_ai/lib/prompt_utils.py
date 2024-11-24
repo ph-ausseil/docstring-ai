@@ -19,8 +19,12 @@ from docstring_ai.lib.chroma_utils import get_relevant_context
 import logging
 from typing import List, Dict
 from docstring_ai.lib.config import MODEL, RETRY_BACKOFF, setup_logging
+from pydantic import BaseModel, Field
 
 setup_logging()
+
+class PythonFile(BaseModel):
+    content: str = Field(description="The complete content of the Python file with the updated docstrings.")
 
 def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant") -> str:
     """
@@ -56,7 +60,26 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
             name=assistant_name,
             description="Assistant to add docstrings to Python files.",
             model=MODEL,
-            tools=[{"type": "code_interpreter"}, {"type": "file_search"}],
+            tools=[
+                {"type": "code_interpreter"}, 
+                {"type": "file_search"},
+                # {"type": "function",
+                #     "function": {
+                #         "name": "write_file_with_new_docstring",
+                #         "description": "Writes the updated Python file content with new docstrings.",
+                #         "parameters": {
+                #             "type": "object",
+                #             "properties": {
+                #                 "new_file_content": {
+                #                     "type": "string",
+                #                     "description": "The complete content of the Python file with the updated docstrings."
+                #                 }
+                #             },
+                #             "required": ["new_file_content"]
+                #         }
+                #     }
+                # }
+            ],
             instructions=instructions
         )
         logging.info(f"Assistant '{assistant_name}' created with ID: {assistant.id}")
@@ -189,7 +212,12 @@ def extract_code_from_message(message: str) -> str:
         raise Exception("No code block found in the assistant's response.")
 
 
-def send_message_to_assistant(assistant_id: str, thread_id: str, prompt: str) -> str:
+def send_message_to_assistant(
+    assistant_id: str,
+    thread_id: str,
+    prompt: str,
+    response_format: BaseModel = None
+    ) -> str:
     """
     Sends a prompt to the Assistant and retrieves the response.
 
@@ -210,6 +238,7 @@ def send_message_to_assistant(assistant_id: str, thread_id: str, prompt: str) ->
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=assistant_id,
+            response_format=BaseModel
         )
         if poll_run_completion(
             run_id=  run.id, 
@@ -245,7 +274,8 @@ def generate_file_description(assistant_id: str, thread_id: str, file_content: s
         f"{file_content}\n"
         "```"
     )
-    return send_message_to_assistant(assistant_id, thread_id, prompt)
+    return send_message_to_assistant(
+        assistant_id = assistant_id, thread_id = thread_id, prompt = prompt)
 
 def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -> str:
     """
@@ -272,7 +302,10 @@ def add_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -
         prompt = f"{context}\n\n" + prompt
 
     try :
-        response = send_message_to_assistant(assistant_id, thread_id, prompt)
+        response = send_message_to_assistant(assistant_id = assistant_id,
+        thread_id = thread_id, 
+        prompt = prompt,
+        response_format = PythonFile)
     except : 
         print(f"Issue parssing the message {response}")
         raise Exception(e)
