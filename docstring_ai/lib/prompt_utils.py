@@ -14,6 +14,7 @@ Functions:
 """
 import time
 import openai
+from openai.types import vector_store_create_params
 import chromadb
 from docstring_ai.lib.chroma_utils import get_relevant_context
 import logging
@@ -359,10 +360,17 @@ def create_vector_store(vector_store_name: str, file_ids: List[str]) -> str:
     Returns:
         str: The ID of the created vector store.
     """
-    vector_store = openai.beta.vector_stores.create(name=vector_store_name)
+    vector_store = openai.beta.vector_stores.create(
+        name=vector_store_name,
+        expires_after = vector_store_create_params.ExpiresAfter(
+            anchor = "last_active_at",
+            days = 3
+        )
+        )
     openai.beta.vector_stores.file_batches.create(
         vector_store_id=vector_store.id,
-        file_ids=file_ids
+        file_ids=file_ids,
+        e
     )
     return vector_store.id
 
