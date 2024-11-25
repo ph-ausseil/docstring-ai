@@ -19,7 +19,7 @@ import chromadb
 from docstring_ai.lib.chroma_utils import get_relevant_context
 import logging
 from typing import List, Dict
-from docstring_ai.lib.config import MODEL, RETRY_BACKOFF, setup_logging
+from docstring_ai.lib.config import MODEL, RETRY_BACKOFF, setup_logging, MAX_RETRIES 
 from pydantic import BaseModel, Field
 
 setup_logging()
@@ -377,7 +377,7 @@ def create_vector_store(vector_store_name: str, file_ids: List[str]) -> str:
 
 def poll_run_completion(run_id: str, thread_id: str) -> bool:
     """
-    Polls until the run is completed, failed, or cancelled.
+    Polls until the run is completed, failed, or cancelled, with a retry mechanism.
 
     Args:
         run_id (str): The ID of the run to monitor.
@@ -386,42 +386,59 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
     Returns:
         bool: True if the run completed successfully, False otherwise.
     """
-    while True:
-        current_run = openai.beta.threads.runs.retrieve(
-            run_id=run_id,
-            thread_id=thread_id
-        )
-        last_status = None
-        status = current_run.status
-        #logging.debug(f"current run {current_run}")
-        if status == 'completed':
-            logging.debug(f"Run {run_id} completed.")
-            # Ensure the thread has at least one assistant message
-            last_message = retrieve_last_assistant_message(thread_id)
-            if last_message:
-                return True
-            logging.error("Run completed, but no assistant response available.")
-            return False
-        elif status in ['failed', 'expired', 'cancelled']:
-            logging.error(f"Run {run_id} ended with status: {status}")
-            return False
-        else:
-            if not last_status or last_status != status:
-                logging.debug(f"Run {run_id} status: {status}. Waiting for completion...")
-                last_status = status
-            if (status == "requires_action") :
-                logging.warning("Required action, submitting tool outputs...")
-                run = openai.beta.threads.runs.submit_tool_outputs(
-                    thread_id=thread_id,
+    retries = 0
+
+    while retries <= MAX_RETRIES:
+        while True:
+            try:
+                current_run = openai.beta.threads.runs.retrieve(
                     run_id=run_id,
-                    tool_outputs=[
-                        {
-                        "tool_call_id": current_run.required_action.submit_tool_outputs.tool_calls[0].id,
-                        "output": ""
-                        }
-                    ]
-                    )
-            time.sleep(RETRY_BACKOFF)
+                    thread_id=thread_id
+                )
+                status = current_run.status
+                # Log status for debugging
+                logging.debug(f"Run {run_id} current status: {status}")
+                
+                if status == 'completed':
+                    logging.debug(f"Run {run_id} completed.")
+                    # Ensure the thread has at least one assistant message
+                    last_message = retrieve_last_assistant_message(thread_id)
+                    if last_message:
+                        return True
+                    logging.error("Run completed, but no assistant response available.")
+                    return False
+                elif status in ['failed', 'expired', 'cancelled']:
+                    logging.error(f"Run {run_id} ended with status: {status}")
+                    logging.error(f"Details : {current_run.last_error}")
+                    break  # Exit the inner loop to retry
+                else:
+                    logging.debug(f"Run {run_id} still in progress. Waiting...")
+                    if status == "requires_action":
+                        logging.warning("Required action, submitting tool outputs...")
+                        openai.beta.threads.runs.submit_tool_outputs(
+                            thread_id=thread_id,
+                            run_id=run_id,
+                            tool_outputs=[
+                                {
+                                    "tool_call_id": current_run.required_action.submit_tool_outputs.tool_calls[0].id,
+                                    "output": ""
+                                }
+                            ]
+                        )
+                    time.sleep(RETRY_BACKOFF)
+            except Exception as e:
+                logging.error(f"An error occurred while polling the run: {e}")
+                break  # Exit the inner loop to retry
+        
+        retries += 1
+        if retries > MAX_RETRIES:
+            logging.error(f"Maximum retries reached for run {run_id}. Aborting.")
+            return False
+        
+        logging.info(f"Retrying run {run_id} (attempt {retries}/{MAX_RETRIES})...")
+        time.sleep(RETRY_BACKOFF * retries)  # Exponential backoff
+
+    return False
 
 
 def retrieve_last_assistant_message(thread_id: str) -> str:
