@@ -18,9 +18,10 @@ from openai.types.beta import vector_store_create_params
 import chromadb
 from docstring_ai.lib.chroma_utils import get_relevant_context
 import logging
-from typing import List, Dict
-from docstring_ai.lib.config import MODEL, RETRY_BACKOFF, setup_logging, MAX_RETRIES 
+from typing import List, Dict, Callable
+from docstring_ai.lib.config import MODEL, RETRY_BACKOFF, setup_logging, MAX_RETRIES
 from pydantic import BaseModel, Field
+import json
 
 setup_logging()
 
@@ -29,7 +30,7 @@ ASSISTANTS_DEFAULT_TOOLS = [
                 {"type": "file_search"},
             ]
 class PythonFile(BaseModel):
-    content: str = Field(description="Updated python script with the updated docstrings.")
+    new_file_content: str = Field(description="Updated python script with the updated docstrings.")
 
 def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant") -> str:
     """
@@ -211,7 +212,8 @@ def send_message_to_assistant(
     prompt: str,
     response_format: BaseModel = None,
     tools : List = [],
-    tool_choice = "auto"
+    tool_choice = "auto",
+    functions : Dict[str, Callable] = {}
     ) -> str:
     """
     Sends a prompt to the Assistant and retrieves the response.
@@ -240,7 +242,8 @@ def send_message_to_assistant(
             )
         if poll_run_completion(
             run_id=  run.id, 
-            thread_id=thread_id
+            thread_id=thread_id,
+            functions=functions
             ):
             last_assistant_message = retrieve_last_assistant_message(thread_id)
             return last_assistant_message[-1].text.value
@@ -277,7 +280,13 @@ def generate_file_description(assistant_id: str, thread_id: str, file_content: s
     return send_message_to_assistant(
         assistant_id = assistant_id, thread_id = thread_id, prompt = prompt)
 
-def get_code_with_docstrings(assistant_id: str, thread_id: str, code: str, context: str) -> str:
+def create_file_with_docstring(
+    assistant_id: str,
+    thread_id: str,
+    code: str,
+    context: str,
+    functions : Dict[str, Callable]
+    ) -> str:
     """
     Adds docstrings to Python code using the Assistant.
 
@@ -324,7 +333,8 @@ def get_code_with_docstrings(assistant_id: str, thread_id: str, code: str, conte
                         }
                     }
                 }
-            ]
+            ],
+            functions= functions
             )
         # response_format = {
         #     'type': 'json_schema',
@@ -378,7 +388,7 @@ def create_vector_store(vector_store_name: str, file_ids: List[str]) -> str:
     return vector_store.id
 
 
-def poll_run_completion(run_id: str, thread_id: str) -> bool:
+def poll_run_completion(run_id: str, thread_id: str, functions : Dict[str, Callable]) -> bool:
     """
     Polls until the run is completed, failed, or cancelled, with a retry mechanism.
 
@@ -417,17 +427,26 @@ def poll_run_completion(run_id: str, thread_id: str) -> bool:
                 else:
                     logging.debug(f"Run {run_id} still in progress. Waiting...")
                     if status == "requires_action":
-                        logging.warning("Required action, submitting tool outputs...")
-                        openai.beta.threads.runs.submit_tool_outputs(
-                            thread_id=thread_id,
-                            run_id=run_id,
-                            tool_outputs=[
-                                {
-                                    "tool_call_id": current_run.required_action.submit_tool_outputs.tool_calls[0].id,
-                                    "output": ""
-                                }
-                            ]
-                        )
+                        for tool_call in tool_calls:
+                            if tool_call.function.name == "write_file_with_new_docstring":
+                                return_value = functions[tool_call.function.name](**json.loads(tool_call.function.arguments))
+
+                                if return_value:
+                                    openai.beta.threads.runs.submit_tool_outputs(
+                                        thread_id=thread_id,
+                                        run_id=run_id,
+                                        tool_outputs=[
+                                            {
+                                                "tool_call_id": tool_call.id,
+                                                "output": ""
+                                            }
+                                        ]
+                                    )
+                                    return return_value
+                                    
+                        logging.error(f"Tool returned value : {return_value}")
+                        raise Exception(f"Tool returned value : {return_value}")
+                        
                     time.sleep(RETRY_BACKOFF)
             except Exception as e:
                 logging.error(f"An error occurred while polling the run: {e}")

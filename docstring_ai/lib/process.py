@@ -14,6 +14,8 @@ from docstring_ai.lib.logger import show_file_progress
 import openai
 import datetime
 import tiktoken
+
+from functools import partial 
 from docstring_ai.lib.utils import (
     ensure_docstring_header,
     check_git_repo,
@@ -34,7 +36,7 @@ from docstring_ai.lib.prompt_utils import (
     update_assistant_tool_resources,
     create_thread,
     construct_few_shot_prompt,
-    get_code_with_docstrings,
+    create_file_with_docstring,
     generate_file_description
 )
 from docstring_ai.lib.chroma_utils import (
@@ -419,28 +421,69 @@ def process_single_file(
 
     # Add docstrings using Assistant's API
     logging.info(f"Generating new docstrings for : {file_path}")
-    modified_code = get_code_with_docstrings(
+
+    patched_approve_and_save_file = partial(
+        approve_and_save_file,
+        original_code=original_code,
+        file_path=file_path,
+        repo_path=repo_path,
+        manual=manual,
+        context_summary=context_summary,
+        cache=cache,
+        collection=collection,
+        assistant_id=assistant_id,
+        thread_id=thread_id,
+    )
+    return create_file_with_docstring(
         assistant_id=assistant_id,
         thread_id=thread_id,
         code=original_code,
-        context=few_shot_prompt
+        context=few_shot_prompt,
+        functions=[{"write_file_with_new_docstring": patched_approve_and_save_file}]
     )
 
-    if hasattr(process_single_file, 'last_modified_code') and process_single_file.last_modified_code == modified_code:
-        print(f"Old file path = {process_single_file.last_file_path}")
 
-    process_single_file.last_file_path = file_path
-    process_single_file.last_modified_code = modified_code
+def approve_and_save_file(
+    new_file_content: str,
+    original_code: str,
+    file_path: str,
+    repo_path: str,
+    manual: bool,
+    context_summary: list,
+    cache: dict,
+    collection,
+    assistant_id: str,
+    thread_id: str,
+) -> None:
+    """
+    Approves and saves the modified code, handles manual validation, updates context, and cache.
 
-    if modified_code and modified_code != original_code:
+    Args:
+        original_code (str): The original code before modification.
+        modified_code (str): The code after adding docstrings.
+        file_path (str): The path to the Python file.
+        repo_path (str): The repository path.
+        manual (bool): Flag indicating if manual approval is required.
+        context_summary (list): The context summary list.
+        cache (dict): The cache dictionary.
+        collection: The ChromaDB collection.
+        assistant_id (str): The OpenAI assistant ID.
+        thread_id (str): The thread ID for OpenAI interactions.
+
+    Returns:
+        None
+    """
+    if new_file_content and new_file_content != original_code:
         # Ensure the header is added if not present
-        modified_code = ensure_docstring_header(modified_code)
-        # Show diff and ask for validation if manual flag is enabled
+        modified_code = ensure_docstring_header(new_file_content)
+        
         if manual:
             diff = show_diff(original_code, modified_code)
             print(f"\n--- Diff for {file_path} ---\n{diff}\n--- End of Diff ---\n")
             if not prompt_user_confirmation(f"Do you approve changes for {file_path}?"):
-                logging.info(f"Changes for {file_path} were not approved by the user.")
+                logging.info(
+                    f"Changes for {file_path} were not approved by the user."
+                )
                 return  # Skip applying changes
 
         try:
@@ -448,54 +491,81 @@ def process_single_file(
             if not check_git_repo(repo_path):
                 # No Git: Always create a backup
                 create_backup(file_path)
-            elif check_git_repo(repo_path) and file_has_uncommitted_changes(repo_path, file_path):
+            elif check_git_repo(repo_path) and file_has_uncommitted_changes(
+                repo_path, file_path
+            ):
                 # Git is present: Backup if the file has uncommitted changes
                 create_backup(file_path)
 
             # Update the file with modified code
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(modified_code)
             logging.info(f"Updated docstrings in {file_path}")
 
             # **New Step: Get Detailed File Description After Adding Docstrings**
-            logging.info(f"Generating updated description for {file_path} after adding docstrings...")
+            logging.info(
+                f"Generating updated description for {file_path} after adding docstrings..."
+            )
             updated_file_description = generate_file_description(
                 assistant_id=assistant_id,
-                thread_id=thread_id, 
-                file_content=modified_code
+                thread_id=thread_id,
+                file_content=modified_code,
             )
             logging.info(f"Updated description for {file_path}")
 
             # Update context_summary with the updated description
+            relative_path = os.path.relpath(file_path, repo_path)
+            cached_entry = next(
+                (
+                    item
+                    for item in context_summary
+                    if str(Path(item["file"])) == str(Path(relative_path))
+                ),
+                None,
+            )
             if cached_entry:
                 # Update existing entry
                 cached_entry["description"] = updated_file_description
-                logging.info(f"Updated cached description for {file_path}.")
+                logging.info(
+                    f"Updated cached description for {file_path}."
+                )
             else:
                 # Append new entry
-                context_summary.append({
-                    "file": relative_path,
-                    "description": updated_file_description
-                })
+                context_summary.append(
+                    {
+                        "file": relative_path,
+                        "description": updated_file_description,
+                    }
+                )
 
             # Update cache with new hash
             new_hash = compute_sha256(file_path)
             cache[relative_path] = new_hash
             logging.info(f"Updated cache for file: {file_path}")
 
+            # Assuming modified_classes is available or can be retrieved
+            extractor = DocstringExtractor(file_path=file_path)
+            extractor.process()
+            modified_classes = extractor.process_imports(package="docstring_ai.lib")
+
             for class_name in modified_classes.keys():
                 # Extract the docstring for each class
+                class_docstring = extractor.get_class_docstring(class_name)
                 if class_docstring:
                     summary = extractor.compile()  # First line as summary
-                    store_class_summary(collection, relative_path, class_name, summary)
+                    store_class_summary(
+                        collection, relative_path, class_name, summary
+                    )
 
         except Exception as e:
             logging.error(f"Error updating file {file_path}: {e}")
     else:
         logging.info(f"No changes made to {file_path}.")
         # Update cache even if no changes to prevent reprocessing unchanged files
+        relative_path = os.path.relpath(file_path, repo_path)
         current_hash = compute_sha256(file_path)
         cache[relative_path] = current_hash
+
 
 @show_file_progress(desc="Checking file hashes", leave=True)
 def filter_files_by_hash(file_path, repo_path, cache):
