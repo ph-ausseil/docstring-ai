@@ -256,7 +256,7 @@ def process_files_and_create_prs(
 
     # Step 11: Upload context descriptions to OpenAI and update Assistant's tool resources
     logging.info("\nUploading file descriptions to OpenAI...")
-    description_file_ids = upload_files_to_openai(files=[str(fp) for fp in file_descriptions_list])
+    description_file_ids = upload_files_to_openai(file_paths=[str(fp) for fp in file_descriptions_list])
 
     update_assistant_tool_resources(
         api_key=api_key,
