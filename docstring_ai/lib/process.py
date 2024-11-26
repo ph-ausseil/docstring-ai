@@ -499,7 +499,7 @@ def approve_and_save_file(
 
             # Update the file with modified code
             with open(file_path, "w", encoding="utf-8") as f:
-                f.write(modified_code)
+                f.write(new_file_content)
             logging.info(f"Updated docstrings in {file_path}")
 
             # **New Step: Get Detailed File Description After Adding Docstrings**
@@ -509,7 +509,7 @@ def approve_and_save_file(
             updated_file_description = generate_file_description(
                 assistant_id=assistant_id,
                 thread_id=thread_id,
-                file_content=modified_code,
+                file_content=new_file_content,
             )
             logging.info(f"Updated description for {file_path}")
 
