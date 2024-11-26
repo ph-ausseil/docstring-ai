@@ -21,7 +21,7 @@ from tqdm import tqdm
 from functools import wraps
 from tqdm import tqdm
 
-def show_file_progress(desc="Processing files", **kwargs):
+def show_file_progress(desc="Processing files", excluded_values = [], **kwargs):
     """
     A decorator to display a progress bar while processing files.
 
@@ -46,7 +46,8 @@ def show_file_progress(desc="Processing files", **kwargs):
             with tqdm(total=len(files), desc=desc, unit="file", dynamic_ncols=True, **kwargs) as pbar:
                 for file in files:
                     result = func(file, *args, **func_kwargs)  # Process one file at a time
-                    results.append(result)  # Store results
+                    if result not in excluded_values:
+                        results.append(result)  # Store results
                     pbar.update(1)
             return results  # Return results for all files
         return wrapper
