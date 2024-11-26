@@ -17,7 +17,10 @@ Modules:
 Functions:
 - main: The entry point of the script that handles argument parsing and execution flow.
 """
-
+from github import Github
+import subprocess
+import re
+from pathlib import Path
 import os
 import openai
 import argparse
@@ -57,6 +60,33 @@ from docstring_ai.lib.config import CACHE_FILE_NAME, CONTEXT_SUMMARY_PATH, setup
 # Load environment variables from .env file
 load_dotenv()
 setup_logging()
+
+import subprocess
+import re
+import requests
+
+
+def is_git_repo(folder_path):
+    """Check if the folder is a Git repository."""
+    try:
+        subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=folder_path, stderr=subprocess.DEVNULL)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def get_remote_url(folder_path):
+    """Retrieve the remote URL for the Git repository."""
+    try:
+        return subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=folder_path, stderr=subprocess.DEVNULL).strip().decode()
+    except subprocess.CalledProcessError:
+        return None
+
+def parse_github_url(remote_url):
+    """Extract user and repository name from a GitHub remote URL."""
+    match = re.search(r"github\.com[:/](.+?)/(.+?)(?:\.git)?$", remote_url)
+    if match:
+        return match.groups()
+    return None, None
 
 
 def main():
@@ -135,9 +165,25 @@ def main():
         print(f"Error: The specified path '{path}' does not exist.")
         exit(1)
 
+    
+    github_repo = args.pr
+    if is_git_repo(path):
+        remote_url = get_remote_url(path)
+        if remote_url:
+            user, repo = parse_github_url(remote_url)
+            if  user and repo : 
+                print(f"The folder {path} is part of the GitHub repository: {user}/{repo}")
+                proceed = input("Do you want to create a pull request on this repository? (yes/no): ").strip().lower()
+                if proceed == "yes" : 
+                    github_repo = f"{user}/{repo}"
+    
+    if github_repo : 
+        proceed = input(f"Do you want to use The folder {os.getenv('GITHUB_REPO')} as GitHub repository ? (yes/no): ").strip().lower()
+        if proceed == "yes" : 
+            github_repo = os.getenv("GITHUB_REPO")
+
     # GitHub integration
     github_token = args.github_token or os.getenv("GITHUB_TOKEN")
-    github_repo = args.pr or os.getenv("GITHUB_REPO")
     pr_depth = args.pr_depth
     branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
@@ -170,8 +216,15 @@ def main():
 
     # Process files and handle PRs
     process_files_and_create_prs(
-        path, api_key, args.pr is not None, github_token, 
-        github_repo, branch_name, pr_name, pr_depth, manual
+        repo_path= path,
+        api_key=api_key,
+        create_pr= github_repo,
+        github_token=github_token, 
+        github_repo=github_repo, 
+        branch_name=branch_name, 
+        pr_name=pr_name, 
+        pr_depth=pr_depth, 
+        manual=manual
     )
 
 if __name__ == "__main__":
