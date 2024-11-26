@@ -266,9 +266,9 @@ def process_files_and_create_prs(
     # Step 12: Process Each Python File for Docstrings
     logging.info("\nProcessing Python files to add docstrings...")
     with tqdm(total=len(files_to_process), desc="Adding docstrings", unit="file", dynamic_ncols=True) as pbar:
-        for file_path in files_to_process:
+        for python_file_path in files_to_process:
             process_single_file(
-                file_path=file_path,
+                python_file_path=python_file_path,
                 repo_path=repo_path,
                 assistant_id=assistant_id,
                 thread_id=thread_id,
@@ -328,7 +328,7 @@ def process_files_and_create_prs(
 
 
 def process_single_file(
-    file_path: str,
+    python_file_path: str,
     repo_path: str,
     assistant_id: str,
     thread_id: str,
@@ -390,23 +390,23 @@ def process_single_file(
         None
     """
     try:
-        relative_path = os.path.relpath(file_path, repo_path)
-        with open(file_path, 'r', encoding='utf-8') as f:
+        relative_path = os.path.relpath(python_file_path, repo_path)
+        with open(python_file_path, 'r', encoding='utf-8') as f:
             original_code = f.read()
     except Exception as e:
-        logging.error(f"Error reading file {file_path}: {e}")
+        logging.error(f"Error reading file {python_file_path}: {e}")
         return
 
     # Check if file is cached and has existing description
     cached_entry = next((item for item in context_summary if str(Path(item["file"])) == str(Path(relative_path))), None)
     if cached_entry:
         file_description = cached_entry.get("description", "")
-        logging.info(f"Using cached description for {file_path}.")
+        logging.info(f"Using cached description for {python_file_path}.")
     else: 
         logging.error("No file description: Cached or Created in `process_files_and_create_prs` ")
         file_description = ""  # Initialize to empty string or handle accordingly
 
-    extractor = DocstringExtractor(file_path=file_path)
+    extractor = DocstringExtractor(file_path=python_file_path)
     extractor.process()
     classes = extractor.process_imports(package='docstring_ai.lib')    
 
@@ -419,13 +419,13 @@ def process_single_file(
     )
 
     # Add docstrings using Assistant's API
-    logging.info(f"Generating new docstrings for: {file_path}")
+    logging.info(f"Generating new docstrings for: {python_file_path}")
 
     # Create a partial function for approval and saving
     patched_approve_and_save_file = partial(
         approve_and_save_file,
         original_code=original_code,
-        file_path=file_path,
+        python_file_path=python_file_path,
         repo_path=repo_path,
         manual=manual,
         context_summary=context_summary,
@@ -445,9 +445,9 @@ def process_single_file(
     )
 
     if result:
-        logging.info(f"Docstrings successfully added and saved for {file_path}.")
+        logging.info(f"Docstrings successfully added and saved for {python_file_path}.")
     else:
-        logging.warning(f"Docstrings not added for {file_path}.")
+        logging.warning(f"Docstrings not added for {python_file_path}.")
 
 
 def approve_and_save_file(
