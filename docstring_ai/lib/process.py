@@ -547,15 +547,17 @@ def approve_and_save_file(
             extractor = DocstringExtractor(file_path=file_path)
             extractor.process()
             modified_classes = extractor.process_imports(package="docstring_ai.lib")
-
-            for class_name in modified_classes.keys():
-                # Extract the docstring for each class
-                class_docstring = extractor.get_class_docstring(class_name)
-                if class_docstring:
-                    summary = extractor.compile()  # First line as summary
-                    store_class_summary(
-                        collection, relative_path, class_name, summary
-                    )
+            try : 
+                for class_name in modified_classes:
+                    # Extract the docstring for each class
+                    class_docstring = extractor.get_class_docstring(class_name)
+                    if class_docstring:
+                        summary = extractor.compile()  # First line as summary
+                        store_class_summary(
+                            collection, relative_path, class_name, summary
+                        )
+            except Exception as e:
+                logging.warning(f"Error refreshing internal vector for file {file_path}: {e}")           
                 
             return new_file_content
 
