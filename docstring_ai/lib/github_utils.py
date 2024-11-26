@@ -46,92 +46,110 @@ def generate_unique_suffix() -> str:
     """
     return uuid.uuid4().hex[:8]
 
-
-def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch_base_name: str, pr_name: str) -> None:
+def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch_base_name: str, pr_name: str) -> bool:
     """
     Creates a GitHub pull request for the specified repository, branch, and pull request name.
-
+    
     This function automates Git operations to create a new branch, commit changes,
     and push them to a remote repository on GitHub. It also gathers the files that
     have changed and includes them in the pull request body.
-
+    
     Args:
         repo_path (str): The local path to the GitHub repository.
         github_token (str): The GitHub Access Token used for authentication.
         github_repo (str): The GitHub repository identifier in the format 'owner/repo'.
         branch_base_name (str): The base name for the new branch to create for the pull request.
         pr_name (str): The title of the pull request.
-
-    Raises:
-        GithubException: If there is an issue with the GitHub API (e.g., permission issues).
-        subprocess.CalledProcessError: If any Git command fails during execution.
-        Exception: For any other unexpected errors that may occur.
+    
+    Returns:
+        bool: True if the PR was created successfully, False otherwise.
     """
     try:
+
+        # Step 3: Initialize GitHub API
         g = Github(github_token)
         repo = g.get_repo(github_repo)
 
-        # Sanitize and generate unique branch name
+        # Step 4: Sanitize and generate unique branch name
         sanitized_branch_name = sanitize_branch_name(branch_base_name)
         unique_suffix = generate_unique_suffix()
         full_branch_name = f"{sanitized_branch_name}_{unique_suffix}"
 
         logging.info(f"Generated unique branch name: '{full_branch_name}'")
 
-        # Create a new branch from the default branch
+        # Step 5: Create a new branch from the default branch
         default_branch = repo.default_branch
-        source = repo.get_branch(default_branch)
-        ref = f"refs/heads/{full_branch_name}"
-
         try:
-            repo.get_git_ref(ref)
-            logging.info(f"Branch '{full_branch_name}' already exists on remote.")
+            source = repo.get_branch(default_branch)
+            ref = f"refs/heads/{full_branch_name}"
+            try:
+                repo.get_git_ref(ref)
+                logging.info(f"Branch '{full_branch_name}' already exists on remote.")
+            except GithubException as e:
+                if e.status == 404:
+                    repo.create_git_ref(ref=ref, sha=source.commit.sha)
+                    logging.info(f"Branch '{full_branch_name}' created on remote.")
+                else:
+                    logging.error(f"Failed to create branch '{full_branch_name}': {e}")
+                    return False
         except GithubException as e:
-            if e.status == 404:
-                repo.create_git_ref(ref=ref, sha=source.commit.sha)
-                logging.info(f"Branch '{full_branch_name}' created on remote.")
-            else:
-                logging.error(f"Failed to create branch '{full_branch_name}': {e}")
-                raise e
+            logging.error(f"Failed to retrieve default branch '{default_branch}': {e}")
+            return False
 
-        # Commit and push changes
+        # Step 6: Commit and push changes
         commit_message = "[Docstring-AI] ✨ Add docstrings via Docstring-AI script"
-        commit_and_push_changes(repo_path, full_branch_name, commit_message)
+        if not commit_and_push_changes(repo_path, full_branch_name, commit_message):
+            logging.error("Failed to commit and push changes.")
+            return False
 
-        # Gather changed files compared to the base branch
+        # Step 7: Gather changed files compared to the base branch
         changed_files = get_changed_files(repo_path, full_branch_name, default_branch)
-
         if not changed_files:
-            logging.warning("No Python files have changed. Pull Request will not be created.")
-            return
+            logging.warning("No Python files have changed after commit. Pull Request will not be created.")
+            return False
 
-        # Create Pull Request with list of changed files in the body
-        pr_body = "Automated docstring additions.\n\n**Files Changed:**\n"
-        for file in changed_files:
-            pr_body += f"- `{file}`\n"
+        # Step 8: Create Pull Request with list of changed files in the body
+        pr_body = create_pull_request_body(changed_files)
+        try:
+            pr = repo.create_pull(
+                title="[Docstring-AI] " + pr_name,
+                body=pr_body,
+                head=full_branch_name,
+                base=default_branch
+            )
+            logging.info(f"Pull Request created: {pr.html_url}")
+            return True
+        except GithubException as e:
+            logging.error(f"GitHub API error while creating PR: {e.data.get('message', e)}")
+            return False
 
-        pr = repo.create_pull(
-            title="[Docstring-AI] " + pr_name,
-            body=pr_body,
-            head=full_branch_name,
-            base=default_branch
-        )
-        logging.info(f"Pull Request created: {pr.html_url}")
-    except GithubException as e:
-        logging.error(f"GitHub API error: {e.data.get('message', e)}")
-        raise e
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Git command failed: {e}")
-        raise e
     except Exception as e:
-        logging.error(f"Error creating GitHub PR: {e}")
-        raise e
+        logging.error(f"Unexpected error in create_github_pr: {e}")
+        return False
 
 
-def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: str) -> None:
+
+
+def create_pull_request_body(changed_files: List[str]) -> str:
+    """
+    Creates the body content for the pull request listing the changed files.
+    
+    Args:
+        changed_files (List[str]): List of changed Python file paths.
+    
+    Returns:
+        str: The formatted PR body.
+    """
+    pr_body = "Automated docstring additions.\n\n**Files Changed:**\n"
+    for file in changed_files:
+        pr_body += f"- `{file}`\n"
+    return pr_body
+
+
+def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: str) -> bool:
     """
     Commits and pushes changes to the specified branch in the given repository.
-
+    
     This function manages Git operations to switch to the specified branch,
     add all changes, make a commit with the provided message, fetch and merge
     remote changes, and then push the changes to the remote repository.
@@ -140,9 +158,9 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
         repo_path (str): The local path to the GitHub repository.
         branch_name (str): The name of the branch to which changes will be committed.
         commit_message (str): The commit message to use when committing changes.
-
-    Raises:
-        subprocess.CalledProcessError: If any Git command fails during execution.
+    
+    Returns:
+        bool: True if commit and push were successful, False otherwise.
     """
     try:
         # Checkout or create the branch locally
@@ -163,6 +181,10 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
         )
         logging.info("Added all changes to staging.")
 
+        # Log git status
+        if not log_git_status(repo_path):
+            return False
+
         # Check if there are changes to commit
         result = subprocess.run(
             ["git", "-C", repo_path, "diff", "--cached", "--exit-code"],
@@ -172,7 +194,7 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
 
         if result.returncode == 0:
             logging.info("No changes to commit.")
-            return  # Exit the function as there are no changes
+            return True  # No changes to commit, but not an error
 
         # Commit changes
         subprocess.run(
@@ -213,7 +235,7 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
 
         # Push changes to remote repository
         subprocess.run(
-            ["git", "-C", repo_path, "push", "-u", "origin", branch_name],
+            ["git", "-C", repo_path, "push", "-u", "origin", branch_name"],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
@@ -230,21 +252,25 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
         )
         logging.info(f"Remote Branch '{branch_name}' Commit History:\n{remote_log.stdout}")
 
+        # Log git status after push
+        if not log_git_status(repo_path):
+            return False
+
+        return True
+
     except subprocess.CalledProcessError as e:
         logging.error(f"Git command failed: {e.stderr.decode().strip()}")
-        raise e
-
-
+        return False
 
 def get_changed_files(repo_path: str, branch_name: str, base_branch: str) -> List[str]:
     """
     Retrieves a list of changed Python files in the given repository between the base branch and the feature branch.
-
+    
     Args:
         repo_path (str): The local path to the GitHub repository.
         branch_name (str): The name of the feature branch.
         base_branch (str): The name of the base branch to compare against.
-
+    
     Returns:
         List[str]: A list of changed Python files.
     """
@@ -274,21 +300,22 @@ def get_changed_files(repo_path: str, branch_name: str, base_branch: str) -> Lis
         )
         changed_files = result.stdout.strip().split('\n')
         changed_files = [file for file in changed_files if file.endswith('.py') and file]
-        logging.info(f"Changed Python files: {changed_files}")
+        if changed_files:
+            logging.info(f"Changed Python files: {changed_files}")
+        else:
+            logging.info("No Python files have changed.")
         return changed_files
     except subprocess.CalledProcessError as e:
         logging.error(f"Git command failed while retrieving changed files: {e.stderr.strip()}")
         return []
 
-
-
 def get_python_files(repo_path: str) -> List[str]:
     """
     Retrieves a list of all Python files in the given repository.
-
+    
     Args:
         repo_path (str): The local path to the GitHub repository.
-
+    
     Returns:
         List[str]: A list of Python file paths.
     """
@@ -302,3 +329,29 @@ def get_python_files(repo_path: str) -> List[str]:
                 python_files.append(os.path.relpath(full_path, repo_path))
     logging.info(f"Total Python files found: {len(python_files)}")
     return python_files
+
+
+def log_git_status(repo_path: str) -> bool:
+    """
+    Logs the current git status.
+    
+    Args:
+        repo_path (str): The local path to the GitHub repository.
+    
+    Returns:
+        bool: True if git status was logged successfully, False otherwise.
+    """
+    try:
+        status = subprocess.run(
+            ["git", "-C", repo_path, "status"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        logging.info(f"Git Status:\n{status.stdout}")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to retrieve git status: {e.stderr.strip()}")
+        return False
+
