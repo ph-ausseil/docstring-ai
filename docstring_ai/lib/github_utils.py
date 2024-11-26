@@ -46,6 +46,7 @@ def generate_unique_suffix() -> str:
     """
     return uuid.uuid4().hex[:8]
 
+
 def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch_base_name: str, pr_name: str) -> None:
     """
     Creates a GitHub pull request for the specified repository, branch, and pull request name.
@@ -97,8 +98,8 @@ def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch
         commit_message = "[Docstring-AI] ✨ Add docstrings via Docstring-AI script"
         commit_and_push_changes(repo_path, full_branch_name, commit_message)
 
-        # Gather changed files
-        changed_files = get_changed_files(repo_path, full_branch_name)
+        # Gather changed files compared to the base branch
+        changed_files = get_changed_files(repo_path, full_branch_name, default_branch)
 
         if not changed_files:
             logging.warning("No Python files have changed. Pull Request will not be created.")
@@ -125,6 +126,7 @@ def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch
     except Exception as e:
         logging.error(f"Error creating GitHub PR: {e}")
         raise e
+
 
 def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: str) -> None:
     """
@@ -211,37 +213,32 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
         logging.error(f"Git command failed: {e.stderr.decode().strip()}")
         raise e
 
-def get_changed_files(repo_path: str, branch_name: str) -> List[str]:
-    """
-    Retrieves a list of changed Python files in the given repository since the last commit.
 
-    This function uses Git to determine which Python files have changed in the local repository
-    by comparing the current state of the working directory to the last commit on the specified branch.
+def get_changed_files(repo_path: str, branch_name: str, base_branch: str) -> List[str]:
+    """
+    Retrieves a list of changed Python files in the given repository between the base branch and the feature branch.
 
     Args:
         repo_path (str): The local path to the GitHub repository.
-        branch_name (str): The name of the branch to compare against.
+        branch_name (str): The name of the feature branch.
+        base_branch (str): The name of the base branch to compare against.
 
     Returns:
         List[str]: A list of changed Python files.
     """
     try:
-        # Ensure the remote branch exists
-        result = subprocess.run(
-            ["git", "-C", repo_path, "show-ref", "--verify", f"refs/remotes/origin/{branch_name}"],
+        # Ensure the base branch exists locally
+        subprocess.run(
+            ["git", "-C", repo_path, "fetch", "origin", base_branch],
+            check=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            stderr=subprocess.PIPE
         )
-        if result.returncode != 0:
-            logging.warning(f"Remote branch 'origin/{branch_name}' does not exist. Assuming all files are new.")
-            # All Python files are considered changed
-            all_python_files = get_python_files(repo_path)
-            return all_python_files
+        logging.info(f"Fetched latest changes from base branch '{base_branch}'.")
 
-        # Get the diff between the local branch and its upstream
+        # Get the diff between the base branch and the feature branch
         result = subprocess.run(
-            ["git", "-C", repo_path, "diff", "--name-only", f"origin/{branch_name}"],
+            ["git", "-C", repo_path, "diff", "--name-only", f"origin/{base_branch}..{branch_name}"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -254,6 +251,7 @@ def get_changed_files(repo_path: str, branch_name: str) -> List[str]:
     except subprocess.CalledProcessError as e:
         logging.error(f"Git command failed while retrieving changed files: {e.stderr.strip()}")
         return []
+
 
 def get_python_files(repo_path: str) -> List[str]:
     """
