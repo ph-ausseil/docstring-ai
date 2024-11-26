@@ -289,7 +289,7 @@ class DocstringExtractor:
                             continue
                         imported_names.append(alias.name)
                         
-                    logger.debug(f"Imported '{' '.join(alias.name)}' from '{module}'.")
+                    logger.debug(f"Imported '{' '.join(imported_names)}' from '{module}'.")
 
         logger.info(f"Total imports found from '{package}': {len(imported_names)}")
         return imported_names
