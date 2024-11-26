@@ -158,7 +158,11 @@ def construct_few_shot_prompt(
         Exception: If there is an error retrieving context or generating the prompt.
     """
     try:
-        documents = get_relevant_context(collection, classes, max_tokens // 2)
+        documents = get_relevant_context(collection=collection,
+        classes =classes,
+        max_tokens = max_tokens // 2,
+        where={"file_type": "script"},
+        )
 
         examples = "You will be asked to generate dosctrings. To do so we will give you some example of python code as well as some contextual information.\n"
 

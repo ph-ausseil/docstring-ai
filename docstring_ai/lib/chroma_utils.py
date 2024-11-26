@@ -69,7 +69,7 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
     return collection
 
 
-def embed_and_store_files(collection: chromadb.Collection, python_files: List[str]) -> None:
+def embed_and_store_files(collection: chromadb.Collection, python_files: List[str], tags : Dict[str , str] = {}) -> None:
     """Embed each Python file and store it in ChromaDB.
 
     This function reads the contents of each specified Python file, embeds the content,
@@ -93,7 +93,7 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
             doc_id = os.path.relpath(file_path)
             ids.append(doc_id)
             documents.append(content)
-            metadatas.append({"file_path": file_path})
+            metadatas.append( {"file_path": file_path} + tags)
             logging.info(f"Prepared file for embedding: {file_path}")
         except Exception as e:
             logging.error(f"Error reading file {file_path}: {e}")
@@ -124,7 +124,7 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
         logging.error(traceback.format_exc())
 
 
-def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, List[str]], max_tokens: int) -> str:
+def get_relevant_context(collection: chromadb.Collection, classes: List[str], max_tokens: int , where : str = None) -> str:
     """
     Retrieve relevant documents from ChromaDB based on class dependencies.
 
@@ -147,10 +147,11 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
         context = ""
         token_count = 0
         # Corrected join operation
-        query = " ".join(classes.keys())
+        query = classes.join(" ")
         results = collection.query(
                 query_texts=[query],
-                n_results=5  # Adjust based on desired breadth
+                n_results=5,  # Adjust based on desired breadth,
+                where = where
             )
         
         # for class_name, parents in classes:
