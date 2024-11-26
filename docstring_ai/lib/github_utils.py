@@ -183,6 +183,16 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
         )
         logging.info(f"Committed changes with message: '{commit_message}'")
 
+        # Display the latest commit for verification
+        commit_log = subprocess.run(
+            ["git", "-C", repo_path, "log", "-1"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        logging.info(f"Latest Commit:\n{commit_log.stdout}")
+
         # Fetch remote changes for the branch
         subprocess.run(
             ["git", "-C", repo_path, "fetch", "origin", branch_name],
@@ -209,9 +219,21 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
             stderr=subprocess.PIPE
         )
         logging.info(f"Changes pushed to branch '{branch_name}' on remote.")
+
+        # Display the remote commit history for verification
+        remote_log = subprocess.run(
+            ["git", "-C", repo_path, "log", "origin/" + branch_name, "--oneline"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        logging.info(f"Remote Branch '{branch_name}' Commit History:\n{remote_log.stdout}")
+
     except subprocess.CalledProcessError as e:
         logging.error(f"Git command failed: {e.stderr.decode().strip()}")
         raise e
+
 
 
 def get_changed_files(repo_path: str, branch_name: str, base_branch: str) -> List[str]:
@@ -227,18 +249,24 @@ def get_changed_files(repo_path: str, branch_name: str, base_branch: str) -> Lis
         List[str]: A list of changed Python files.
     """
     try:
-        # Ensure the base branch exists locally
+        # Fetch the latest changes for both base and feature branches
         subprocess.run(
             ["git", "-C", repo_path, "fetch", "origin", base_branch],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        logging.info(f"Fetched latest changes from base branch '{base_branch}'.")
+        subprocess.run(
+            ["git", "-C", repo_path, "fetch", "origin", branch_name],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        logging.info(f"Fetched latest changes from base branch '{base_branch}' and feature branch '{branch_name}'.")
 
-        # Get the diff between the base branch and the feature branch
+        # Get the diff between the remote base branch and remote feature branch
         result = subprocess.run(
-            ["git", "-C", repo_path, "diff", "--name-only", f"origin/{base_branch}..{branch_name}"],
+            ["git", "-C", repo_path, "diff", "--name-only", f"origin/{base_branch}..origin/{branch_name}"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -251,6 +279,7 @@ def get_changed_files(repo_path: str, branch_name: str, base_branch: str) -> Lis
     except subprocess.CalledProcessError as e:
         logging.error(f"Git command failed while retrieving changed files: {e.stderr.strip()}")
         return []
+
 
 
 def get_python_files(repo_path: str) -> List[str]:
