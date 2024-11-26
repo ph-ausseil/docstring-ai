@@ -143,7 +143,7 @@ def get_relevant_context(collection: chromadb.Collection, classes: Dict[str, Lis
         context = get_relevant_context(collection, classes, max_tokens)
     """
     try: 
-        encoder = tiktoken.get_encoding("gpt-4o")
+        encoder = tiktoken.get_encoding("o200k_base")
         context = ""
         token_count = 0
         # Corrected join operation

@@ -393,6 +393,8 @@ def process_single_file(
     if cached_entry:
         file_description = cached_entry.get("description", "")
         logging.info(f"Using cached description for {file_path}.")
+    else: 
+        logging.error("No file description : Cached or Created in `process_files_and_create_prs` ")
 
     extractor = DocstringExtractor(file_path=file_path)
     extractor.process()
