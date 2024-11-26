@@ -24,6 +24,8 @@ Constants:
         The name of the file used for caching purposes to optimize the retrieval of stored results.
     CONTEXT_SUMMARY_PATH (str): 
         The file path for storing context summaries during processing tasks.
+    DATA_PATH (str):
+        The path where data related to the application is stored.
 """
 
 from .lib.config import (
@@ -34,6 +36,6 @@ from .lib.config import (
     RETRY_BACKOFF,  # int: The time (in seconds) to wait before retrying a failed API request.
     CHROMA_COLLECTION_NAME,  # str: The name of the ChromaDB collection used to store context data.
     CACHE_FILE_NAME,  # str: The name of the file used for caching purposes to optimize retrieval.
-    CONTEXT_SUMMARY_PATH , # str: The file path for storing context summaries during processing tasks.,
-    DATA_PATH
+    CONTEXT_SUMMARY_PATH , # str: The file path for storing context summaries during processing tasks.
+    DATA_PATH  # str: The path where data related to the application is stored.
 )

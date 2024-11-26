@@ -322,7 +322,7 @@ def process_files_and_create_prs(
                     repo_path=repo_path, 
                     github_token=github_token, 
                     github_repo=github_repo, 
-                    branch_name=folder_branch_name, 
+                    branch_base_name=folder_branch_name, 
                     pr_name=folder_pr_name
                 )
 
