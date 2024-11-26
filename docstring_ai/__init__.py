@@ -4,7 +4,7 @@ This module imports and defines constants related to the model configuration for
 
 These constants include information on model names, token limits, embedding models,
 API request limits, caching strategies, and database collections. They are designed to facilitate
-configuration of model interactions and storage mechanisms, ensuring that the application can 
+configuration of model interactions and storage mechanisms, ensuring that the application can
 be easily maintained and adapted as needed.
 
 Constants:
@@ -34,6 +34,6 @@ from .lib.config import (
     RETRY_BACKOFF,  # int: The time (in seconds) to wait before retrying a failed API request.
     CHROMA_COLLECTION_NAME,  # str: The name of the ChromaDB collection used to store context data.
     CACHE_FILE_NAME,  # str: The name of the file used for caching purposes to optimize retrieval.
-    CONTEXT_SUMMARY_PATH , # str: The file path for storing context summaries during processing tasks.,
-    DATA_PATH
+    CONTEXT_SUMMARY_PATH,  # str: The file path for storing context summaries during processing tasks.
+    DATA_PATH  # str: The path to the data directory.
 )
