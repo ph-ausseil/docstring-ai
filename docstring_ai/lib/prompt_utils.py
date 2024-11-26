@@ -388,7 +388,11 @@ def create_vector_store(vector_store_name: str, file_ids: List[str]) -> str:
     return vector_store.id
 
 
-def poll_run_completion(run_id: str, thread_id: str, functions : Dict[str, Callable]) -> bool:
+def poll_run_completion(
+    run_id: str,
+    thread_id: str,
+    functions : Dict[str, Callable]
+    ) -> bool:
     """
     Polls until the run is completed, failed, or cancelled, with a retry mechanism.
 
