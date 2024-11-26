@@ -201,6 +201,7 @@ def extract_code_from_message(message: str) -> str:
     if match:
         return match.group(1)
     else:
+        print(message[-1].text.value)
         raise Exception("No code block found in the assistant's response.")
 
 
@@ -381,7 +382,7 @@ def add_docstrings_to_code( assistant_id: str, thread_id: str, code: str, contex
         final_code = modified_code.replace('` ``', '```')
         return final_code
     except Exception as e:
-
+        logging.error("Attempting new run...")
         # Retrieve the assistant's response
         thread = openai.beta.threads.runs.retrieve(
             thread_id=thread_id,
