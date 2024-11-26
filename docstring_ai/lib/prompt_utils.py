@@ -352,7 +352,7 @@ def create_file_with_docstring(
         #         }
         
     except Exception as e: 
-        print(f"Issue parssing the message {response}")
+        print(f"Error : {e}")
         raise Exception(e)
 
     if response:
