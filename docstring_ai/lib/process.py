@@ -5,14 +5,20 @@ embeds the files in ChromaDB, and integrates with GitHub for pull request creati
 Functions:
 - process_files_and_create_prs: Processes Python files, adds docstrings, and creates pull requests.
 """
-
 import json
 import os
 import logging
+from pathlib import Path
+from typing import List, Dict
+from functools import partial, wraps
+from datetime import datetime
+
 import openai
-import datetime
 import tiktoken
+from tqdm import tqdm
+
 from docstring_ai.lib.utils import (
+    ensure_docstring_header,
     check_git_repo,
     has_uncommitted_changes,
     file_has_uncommitted_changes,
@@ -31,24 +37,26 @@ from docstring_ai.lib.prompt_utils import (
     update_assistant_tool_resources,
     create_thread,
     construct_few_shot_prompt,
-    get_file_description,
-    add_docstrings_to_code,
+    create_file_with_docstring,
+    generate_file_description
 )
 from docstring_ai.lib.chroma_utils import (
     initialize_chroma,
     get_or_create_collection,
     embed_and_store_files,
-    get_relevant_context,
     store_class_summary
 )
 from docstring_ai.lib.docstring_utils import (
-    parse_classes,
-    extract_class_docstring,
-    extract_description_from_docstrings
+    DocstringExtractor,
 )
 from docstring_ai.lib.github_utils import create_github_pr
-from docstring_ai import MAX_TOKENS, CHROMA_COLLECTION_NAME, CACHE_FILE_NAME
-
+from docstring_ai import (
+    MAX_TOKENS, 
+    CHROMA_COLLECTION_NAME, 
+    CACHE_FILE_NAME, 
+    DATA_PATH, 
+    CONTEXT_SUMMARY_PATH
+)
 
 def process_files_and_create_prs(
     repo_path: str, 
@@ -64,6 +72,32 @@ def process_files_and_create_prs(
     """
     Processes Python files in the specified repository, adds docstrings using OpenAI's Assistant,
     and creates pull requests on GitHub if specified.
+
+    1. **Setup and Initialization**
+    Step 1: Verify the presence of a Git repository and check for uncommitted changes.
+    Step 2: Initialize ChromaDB for context-aware file embedding and retrieval.
+    Step 3: Load a cache file to track previously processed files.
+
+    2. **File Discovery and Preparation**
+    Step 4: Retrieve all Python files in the repository.
+    Step 5: Sort files by size to optimize processing order.
+    Step 6: `filter_files_by_hash` - Compute SHA-256 hashes and filter out unchanged files using the cache.
+
+    3. **Embedding and Assistant Setup**
+    Step 7: Embed selected Python files into ChromaDB for efficient context storage.
+    Step 9: `upload_files_to_openai` - Upload files to OpenAI and update the Assistant's resources.
+    Step 8: Initialize an OpenAI Assistant instance for docstring generation.
+    Step 10: Create a new OpenAI thread for interaction and processing.
+
+    4. **Docstring Generation and Processing**
+    Step 11: `process_single_file` - Process each selected Python file to generate and add docstrings.
+    Step 12: Support manual approval of changes, if enabled.
+    Step 13: Save a context summary of processed files for future reference.
+
+    5. **Cache Update and Pull Request Creation (Optional)**
+    Step 14: Update the cache with the latest file states.
+    Step 15: Traverse the repository by folder depth and prepare for pull request creation.
+    Step 16: Create pull requests for the processed files (if enabled).
 
     Args:
         repo_path (str): The path of the Git repository to process.
@@ -83,15 +117,18 @@ def process_files_and_create_prs(
         Exception: Various exceptions may occur during file processing, API calls,
                     or Git operations, which are logged accordingly.
     """
+    ###
+    ### INITIATE
+    ###
     openai.api_key = api_key
 
     # Check if Git is present
     git_present = check_git_repo(repo_path)
 
     # Check for uncommitted changes if Git is present
-    uncommitted_changes = False
-    if git_present:
-        uncommitted_changes = has_uncommitted_changes(repo_path)
+    # uncommitted_changes = False
+    # if git_present:
+    #     uncommitted_changes = has_uncommitted_changes(repo_path)
 
     # Initialize ChromaDB
     logging.info("\nInitializing ChromaDB...")
@@ -114,167 +151,146 @@ def process_files_and_create_prs(
     python_files_sorted = sort_files_by_size(python_files)
 
     # Step 3: Compute SHA-256 hashes and filter out unchanged files
-    files_to_process = []
-    for file_path in python_files_sorted:
-        current_hash = compute_sha256(file_path)
-        cached_hash = cache.get(os.path.relpath(file_path, repo_path))
-        if current_hash == cached_hash:
-            logging.info(f"Skipping unchanged file: {file_path}")
-        else:
-            files_to_process.append(file_path)
-
+    logging.info("\nChecking file hashes...")
+    files_to_process = filter_files_by_hash(python_files_sorted, repo_path, cache)
     logging.info(f"\n{len(files_to_process)} files to process after cache check.")
 
     if not files_to_process:
         logging.info("No files need processing. Exiting.")
         return
 
-    # Step 4: Embed and store files in ChromaDB
-    logging.info("\nEmbedding and storing Python files in ChromaDB...")
-    embed_and_store_files(collection, files_to_process)
+    # Step 4: Traverse repository and categorize folders based on pr_depth
+    logging.info("\nTraversing repository to categorize folders based on pr_depth...")
+    folder_dict = traverse_repo(repo_path, pr_depth)
+    logging.info(f"Found {len(folder_dict)} depth levels up to {pr_depth}.")
 
-    # Step 5: Initialize Assistant
+    ###
+    ### EMBED
+    ###
+
+    # Load Context Summary
+    context_summary_full_path = os.path.join(repo_path, CONTEXT_SUMMARY_PATH)
+    context_summary = []
+    if os.path.exists(context_summary_full_path):
+        try:
+            with open(context_summary_full_path, 'r', encoding='utf-8') as f:
+                context_summary = json.load(f)
+            logging.info(f"Loaded context summary with {len(context_summary)} entries.")
+        except Exception as e:
+            logging.error(f"Error loading context summary: {e}")
+
+    # Step 5: Embed and store files in ChromaDB
+    logging.info("\nEmbedding and storing Python files in ChromaDB...")
+    embed_and_store_files(collection=collection, python_files=files_to_process, tags={"file_type" : "script"})
+
+    # Step 6: Upload files to OpenAI and update Assistant's tool resources
+    logging.info("\nUploading files to OpenAI...")
+    python_file_ids = upload_files_to_openai(files_to_process)
+
+    if not python_file_ids:
+        logging.error("No files were successfully uploaded to OpenAI. Exiting.")
+        return
+
+    ###
+    ### START ASSISTANT 
+    ###
+    # Step 7: Initialize Assistant
     logging.info("\nInitializing Assistant...")
     assistant_id = initialize_assistant(api_key)
     if not assistant_id:
         logging.error("Assistant initialization failed. Exiting.")
         return
 
-    # Step 6: Upload files to OpenAI and update Assistant's tool resources
-    logging.info("\nUploading files to OpenAI and updating Assistant's tool resources...")
-    file_ids = []  # List to store file IDs returned by OpenAI
-
-    for file_path in files_to_process:
-        try:
-            # Upload the file to OpenAI
-            with open(file_path, "rb") as f:
-                response = openai.files.create(
-                    file=f,
-                    purpose="assistants"
-                )
-            file_id = response.id
-            if file_id:
-                file_ids.append(file_id)
-                logging.info(f"Uploaded {file_path} to OpenAI with file ID: {file_id}")
-            else:
-                logging.warning(f"Failed to retrieve file ID for {file_path}")
-        except Exception as e:
-            logging.error(f"Error uploading {file_path} to OpenAI: {e}")
-
-    if not file_ids:
-        logging.error("No files were successfully uploaded to OpenAI. Exiting.")
-        return
-
     # Update Assistant's tool resources with OpenAI file IDs
-    update_assistant_tool_resources(api_key, assistant_id, file_ids)
+    update_assistant_tool_resources(
+        api_key=api_key,
+        assistant_id=assistant_id,
+        file_ids=python_file_ids
+    )
 
-    # Step 7: Create a Thread
+    # Step 8: Create a Thread
     logging.info("\nCreating a new Thread...")
-    thread_id = create_thread(api_key, assistant_id)
+    thread_id = create_thread(
+        api_key=api_key, 
+        assistant_id=assistant_id
+    )
     if not thread_id:
         logging.error("Thread creation failed. Exiting.")
         return
 
-    # Step 8: Traverse repository and categorize folders based on pr_depth
-    logging.info("\nTraversing repository to categorize folders based on pr_depth...")
-    folder_dict = traverse_repo(repo_path, pr_depth)
-    logging.info(f"Found {len(folder_dict)} depth levels up to {pr_depth}.")
+    # Ensure the './data/' directory exists
+    output_dir = DATA_PATH
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Step 9: Create Missing Context 
+    file_descriptions_list = []
+    for file in files_to_process: 
+        if not any(entry["file"] == file for entry in context_summary): 
+            logging.info(f"Generating detailed description for {file}...")
+            with open(file, 'r', encoding='utf-8') as f:
+                file_description = generate_file_description(
+                    assistant_id=assistant_id,
+                    thread_id=thread_id, 
+                    file_content=f.read()
+                )
 
-    # Step 9: Process Each Python File for Docstrings
+            file_path = Path(output_dir) / Path(file).with_suffix('.txt')
+            file_path.parent.mkdir(parents=True, exist_ok=True) 
+            # Create a file with descriptions
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(file_description)
+            file_descriptions_list.append(file_path)
+
+            context_summary.append({
+                "file": file,
+                "description": file_description
+            })
+            # Append to context_summary for future use
+
+    # Step 10: Embed and store context descriptions in ChromaDB
+    logging.info("\nEmbedding and storing Python file descriptions in ChromaDB...")
+    embed_and_store_files(
+        collection=collection, 
+        python_files=file_descriptions_list,
+        tags={"file_type": "description"})
+
+    # Step 11: Upload context descriptions to OpenAI and update Assistant's tool resources
+    logging.info("\nUploading file descriptions to OpenAI...")
+    description_file_ids = upload_files_to_openai(file_paths=[str(fp) for fp in file_descriptions_list])
+
+    update_assistant_tool_resources(
+        api_key=api_key,
+        assistant_id=assistant_id,
+        file_ids= python_file_ids + description_file_ids)
+
+    # Step 12: Process Each Python File for Docstrings
     logging.info("\nProcessing Python files to add docstrings...")
-    context_summary = []
-    for idx, file_path in enumerate(files_to_process, 1):
-        logging.info(f"\nProcessing file {idx}/{len(files_to_process)}: {file_path}")
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                original_code = f.read()
-        except Exception as e:
-            logging.error(f"Error reading file {file_path}: {e}")
-            continue
+    with tqdm(total=len(files_to_process), desc="Adding docstrings", unit="file", dynamic_ncols=True) as pbar:
+        for python_file_path in files_to_process:
+            process_single_file(
+                python_file_path=python_file_path,
+                repo_path=repo_path,
+                assistant_id=assistant_id,
+                thread_id=thread_id,
+                collection=collection,
+                context_summary=context_summary,
+                cache=cache,
+                manual=manual
+            )
+            pbar.update(1)
 
-        # Parse classes and identify dependencies
-        classes = parse_classes(file_path)
-        if not classes:
-            logging.info(f"No classes found in {file_path}. Skipping context retrieval.")
-            context = ""
-        else:
-            # Retrieve relevant context summaries from ChromaDB
-            context = get_relevant_context(collection, classes, max_tokens=MAX_TOKENS // 2)  # Allocate half tokens to context
-            logging.info(f"Retrieved context with {len(tiktoken.get_encoding('gpt4o').encode(context))} tokens.")
-
-        # Construct few-shot prompt
-        few_shot_prompt = construct_few_shot_prompt(collection, classes, max_tokens=MAX_TOKENS)
-
-        # Add docstrings using Assistant's API
-        modified_code = add_docstrings_to_code(assistant_id, thread_id, original_code, few_shot_prompt)
-
-        if modified_code and modified_code != original_code:
-            # Show diff and ask for validation if manual flag is enabled
-            if manual:
-                diff = show_diff(original_code, modified_code)
-                print(f"\n--- Diff for {file_path} ---\n{diff}\n--- End of Diff ---\n")
-                if not prompt_user_confirmation(f"Do you approve changes for {file_path}?"):
-                    logging.info(f"Changes for {file_path} were not approved by the user.")
-                    continue  # Skip applying changes
-
-            try:
-                # Backup original file only if needed
-                if not git_present:
-                    # No Git: Always create a backup
-                    create_backup(file_path)
-                elif git_present and file_has_uncommitted_changes(repo_path, file_path):
-                    # Git is present: Backup if the file has uncommitted changes
-                    create_backup(file_path)
-
-                # Update the file with modified code
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(modified_code)
-                logging.info(f"Updated docstrings in {file_path}")
-
-                # **New Step: Get Detailed File Description Using Assistant's API**
-                logging.info(f"Generating detailed description for {file_path}...")
-                file_description = get_file_description(
-                    assistant_id, 
-                    thread_id, 
-                    modified_code)
-                logging.info(f"Description for {file_path}: {file_description}")
-
-
-                # Parse classes again to extract summaries
-                modified_classes = parse_classes(file_path)
-                for class_name in modified_classes.keys():
-                    # Extract the docstring for each class
-                    class_docstring = extract_class_docstring(modified_code, class_name)
-                    if class_docstring:
-                        summary = class_docstring.strip().split('\n')[0]  # First line as summary
-                        store_class_summary(collection, os.path.relpath(file_path, repo_path), class_name, summary)
-
-                # Update cache with new hash
-                new_hash = compute_sha256(file_path)
-                cache[os.path.relpath(file_path, repo_path)] = new_hash
-                logging.info(f"Updated cache for file: {file_path}")
-
-            except Exception as e:
-                logging.error(f"Error updating file {file_path}: {e}")
-        else:
-            logging.info(f"No changes made to {file_path}.")
-            # Update cache even if no changes to prevent reprocessing unchanged files
-            current_hash = compute_sha256(file_path)
-            cache[os.path.relpath(file_path, repo_path)] = current_hash
-
-    # Step 10: Save Context Summary
-    context_summary_path = os.path.join(repo_path, "context_summary.json")
+    # Step 13: Save Context Summary
     try:
-        with open(context_summary_path, "w", encoding='utf-8') as f:
+        with open(context_summary_full_path, "w", encoding='utf-8') as f:
             json.dump(context_summary, f, indent=2)
-        logging.info(f"\nDocstring generation completed. Context summary saved to '{context_summary_path}'.")
+        logging.info(f"\nDocstring generation completed. Context summary saved to '{context_summary_full_path}'.")
     except Exception as e:
         logging.error(f"Error saving context summary: {e}")
 
-    # Step 11: Save Cache
+    # Step 14: Save Cache
     save_cache(cache_path, cache)
 
-    # Step 12: Create Pull Requests Based on pr_depth
+    # Step 15: Create Pull Requests Based on pr_depth
     if create_pr and git_present and github_token and github_repo:
         if manual:
             # Show summary of PRs to be created and ask for confirmation
@@ -309,3 +325,345 @@ def process_files_and_create_prs(
                     branch_name=folder_branch_name, 
                     pr_name=folder_pr_name
                 )
+
+
+def process_single_file(
+    python_file_path: str,
+    repo_path: str,
+    assistant_id: str,
+    thread_id: str,
+    collection,
+    context_summary: list,
+    cache: dict,
+    manual: bool
+) -> None:
+    """
+    Processes a single Python file: adds docstrings, updates context, and handles caching.
+
+    **Steps:**
+
+    1. **File Reading and Initial Setup**
+       - Compute the file's relative path within the repository.
+       - Read the file content into memory.
+       - Log errors and skip processing if the file cannot be read.
+
+    2. **Class Parsing and Context Retrieval**
+       - Parse the file for class definitions and dependencies.
+       - If classes are found, retrieve relevant context summaries from ChromaDB to support docstring generation.
+
+    3. **Few-Shot Prompt Construction**
+       - Construct a few-shot prompt using the retrieved context and examples from the ChromaDB collection.
+
+    4. **File Description Generation**
+       - Check if the file's description is already cached.
+       - If not cached, generate a detailed file description using the OpenAI Assistant and append it to the context summary.
+
+    5. **Docstring Generation**
+       - Use the OpenAI Assistant to generate docstrings for the code, applying the few-shot prompt and contextual information.
+
+    6. **Manual Validation (Optional)**
+       - If `manual` is set to True, display the differences between the original and modified code for user approval before saving changes.
+
+    7. **File Update**
+       - Create a backup of the original file if Git is not present or if the file has uncommitted changes.
+       - Overwrite the file with the modified code containing the new docstrings.
+
+    8. **Context Summary and Cache Updates**
+       - Generate an updated file description after docstring addition.
+       - Update the cache with the new file hash to avoid reprocessing unchanged files.
+       - Update the context summary with the new description.
+
+    9. **Class Summaries**
+       - Extract and store summaries for any modified classes in the file.
+
+    Args:
+        file_path (str): The path to the Python file.
+        repo_path (str): The repository path.
+        assistant_id (str): The OpenAI assistant ID.
+        thread_id (str): The thread ID for OpenAI interactions.
+        collection: The ChromaDB collection.
+        context_summary (list): The context summary list.
+        cache (dict): The cache dictionary.
+        manual (bool): Flag indicating if manual approval is required.
+
+    Returns:
+        None
+    """
+    try:
+        relative_path = os.path.relpath(python_file_path, repo_path)
+        with open(python_file_path, 'r', encoding='utf-8') as f:
+            original_code = f.read()
+    except Exception as e:
+        logging.error(f"Error reading file {python_file_path}: {e}")
+        return
+
+    # Check if file is cached and has existing description
+    cached_entry = next((item for item in context_summary if str(Path(item["file"])) == str(Path(relative_path))), None)
+    if cached_entry:
+        file_description = cached_entry.get("description", "")
+        logging.info(f"Using cached description for {python_file_path}.")
+    else: 
+        logging.error("No file description: Cached or Created in `process_files_and_create_prs` ")
+        file_description = ""  # Initialize to empty string or handle accordingly
+
+    extractor = DocstringExtractor(file_path=python_file_path)
+    extractor.process()
+    classes = extractor.process_imports(package='docstring_ai.lib')    
+
+    # Construct few-shot prompt
+    few_shot_prompt = construct_few_shot_prompt(
+        collection=collection, 
+        classes=classes, 
+        max_tokens=MAX_TOKENS - len(original_code),
+        context=file_description
+    )
+
+    # Add docstrings using Assistant's API
+    logging.info(f"Generating new docstrings for: {python_file_path}")
+
+    # Create a partial function for approval and saving
+    patched_approve_and_save_file = partial(
+        approve_and_save_file,
+        original_code=original_code,
+        python_file_path=python_file_path,
+        repo_path=repo_path,
+        manual=manual,
+        context_summary=context_summary,
+        cache=cache,
+        collection=collection,
+        assistant_id=assistant_id,
+        thread_id=thread_id,
+    )
+
+    # Generate and apply docstrings
+    result = create_file_with_docstring(
+        assistant_id=assistant_id,
+        thread_id=thread_id,
+        code=original_code,
+        context=few_shot_prompt,
+        functions={"write_file_with_new_docstring": patched_approve_and_save_file}
+    )
+
+    if result:
+        logging.info(f"Docstrings successfully added and saved for {python_file_path}.")
+    else:
+        logging.warning(f"Docstrings not added for {python_file_path}.")
+
+
+def approve_and_save_file(
+    new_file_content: str,
+    original_code: str,
+    python_file_path: str,
+    repo_path: str,
+    manual: bool,
+    context_summary: list,
+    cache: dict,
+    collection,
+    assistant_id: str,
+    thread_id: str,
+) -> bool:
+    """
+    Approves and saves the modified code, handles manual validation, updates context, and cache.
+
+    Args:
+        new_file_content (str): The code after adding docstrings.
+        original_code (str): The original code before modification.
+        file_path (str): The path to the Python file.
+        repo_path (str): The repository path.
+        manual (bool): Flag indicating if manual approval is required.
+        context_summary (list): The context summary list.
+        cache (dict): The cache dictionary.
+        collection: The ChromaDB collection.
+        assistant_id (str): The OpenAI assistant ID.
+        thread_id (str): The thread ID for OpenAI interactions.
+
+    Returns:
+        bool: True if the file was successfully updated and saved, False otherwise.
+    """
+    # Check if there's any change in the file content
+    if not new_file_content:
+        logging.info(f"No changes made to {python_file_path}.")
+        # Update cache even if no changes to prevent reprocessing unchanged files
+        relative_path = os.path.relpath(python_file_path, repo_path)
+        try:
+            current_hash = compute_sha256(python_file_path)
+            cache[relative_path] = current_hash
+            logging.info(f"Cache updated for unchanged file: {python_file_path}")
+        except Exception as e:
+            logging.error(f"Error computing hash for {python_file_path}: {e}")
+        return False  # Indicate that no changes were made
+
+    if new_file_content == original_code:
+        logging.info(f"No changes detected for {python_file_path}.")
+        return False  # Indicate that no changes were made
+
+    # Ensure the header is added if not present
+    try:
+        new_file_content = ensure_docstring_header(new_file_content)
+    except Exception as e:
+        logging.error(f"Error ensuring docstring header for {python_file_path}: {e}")
+        return False
+
+    # Handle manual approval if required
+    if manual:
+        try:
+            diff = show_diff(original_code, new_file_content)
+            print(f"\n--- Diff for {python_file_path} ---\n{diff}\n--- End of Diff ---\n")
+            if not prompt_user_confirmation(f"Do you approve changes for {python_file_path}?"):
+                logging.info(f"Changes for {python_file_path} were not approved by the user.")
+                return False  # Indicate that changes were not approved
+        except Exception as e:
+            logging.error(f"Error during manual approval for {python_file_path}: {e}")
+            return False
+
+    try:
+        # Backup original file only if needed
+        if not check_git_repo(repo_path):
+            # No Git: Always create a backup
+            create_backup(python_file_path)
+            logging.info(f"File Backup created for {python_file_path} (no Git).")
+        elif file_has_uncommitted_changes(repo_path, python_file_path):
+            # Git is present: Backup if the file has uncommitted changes
+            create_backup(python_file_path)
+            logging.info(f"Backup created for {python_file_path} (uncommitted changes).")
+
+        # Update the file with modified code
+        with open(python_file_path, "w", encoding="utf-8") as f:
+            f.write(new_file_content)
+        logging.info(f"Updated docstrings in {python_file_path}")
+
+        # Generate updated file description after adding docstrings
+        try:
+            updated_file_description = generate_file_description(
+                assistant_id=assistant_id,
+                thread_id=thread_id,
+                file_content=new_file_content,
+            )
+            logging.info(f"Updated description for {python_file_path}")
+        except Exception as e:
+            logging.error(f"Error generating updated description for {python_file_path}: {e}")
+            return False
+
+        # Update context_summary with the updated description
+        relative_path = os.path.relpath(python_file_path, repo_path)
+        try:
+            cached_entry = next(
+                (
+                    item
+                    for item in context_summary
+                    if str(Path(item["file"])) == str(Path(relative_path))
+                ),
+                None,
+            )
+            if cached_entry:
+                # Update existing entry
+                cached_entry["description"] = updated_file_description
+                logging.info(f"Updated cached description for {python_file_path}.")
+            else:
+                # Append new entry
+                context_summary.append(
+                    {
+                        "file": relative_path,
+                        "description": updated_file_description,
+                    }
+                )
+                logging.info(f"Added new description for {python_file_path} to context summary.")
+        except Exception as e:
+            logging.error(f"Error updating context summary for {python_file_path}: {e}")
+            return False
+
+        # Update cache with new hash
+        try:
+            new_hash = compute_sha256(python_file_path)
+            cache[relative_path] = new_hash
+            logging.info(f"Updated cache for file: {python_file_path}")
+        except Exception as e:
+            logging.error(f"Error computing new hash for {python_file_path}: {e}")
+            return False
+
+        # Process class summaries
+        try:
+            extractor = DocstringExtractor(file_path=python_file_path)
+            extractor.process()
+            modified_classes = extractor.process_imports(package="docstring_ai.lib")
+
+            for class_name in modified_classes:
+                # Extract the docstring for each class
+                class_docstring = extractor.get_class_docstring(class_name)
+                if class_docstring:
+                    summary = extractor.compile()  # Assuming compile returns the first line as summary
+                    store_class_summary(
+                        collection, relative_path, class_name, summary
+                    )
+                    logging.info(f"Stored summary for class {class_name} in {python_file_path}.")
+        except Exception as e:
+            logging.warning(f"Error refreshing internal vector for file {python_file_path}: {e}")
+
+        return True  # Indicate success
+
+    except Exception as e:
+        logging.error(f"Error updating file {python_file_path}: {e}")
+        return False  # Indicate failure
+
+
+def filter_files_by_hash(file_paths: List[str], repo_path: str, cache: Dict[str, str]) -> List[str]:
+    """
+    Filters a single file based on SHA-256 hash and cache.
+
+    Args:
+        file_path (str): Path to the file.
+        repo_path (str): Path to the repository.
+        cache (dict): Dictionary storing file hashes.
+
+    Returns:
+        str: File path if it needs processing, otherwise None.
+    """
+    changed_files = []
+    logging.info("Début de la vérification des hashs de fichiers...")
+    
+    with tqdm(total=len(file_paths), desc="Vérification des hashs de fichiers", unit="fichier") as pbar:
+        for file_path in file_paths:
+            try:
+                current_hash = compute_sha256(file_path)
+                relative_path = os.path.relpath(file_path, repo_path)
+                cached_hash = cache.get(relative_path)
+                
+                if current_hash != cached_hash:
+                    changed_files.append(file_path)
+            except Exception as e:
+                logging.error(f"Erreur lors de la vérification de {file_path} : {e}")
+            finally:
+                pbar.update(1)
+    
+    logging.info(f"Vérification terminée. {len(changed_files)} fichiers nécessitent un traitement.")
+    return changed_files
+
+
+def upload_files_to_openai(file_paths: List[str]) -> List[str]:
+    """
+    Uploads a single file to OpenAI and returns the file ID.
+
+    Args:
+        file_path (str): Path to the file.
+
+    Returns:
+        str: File ID from OpenAI or None on failure.
+    """
+    file_ids = []
+    logging.info("Début du téléchargement des fichiers sur OpenAI...")
+    with tqdm(total=len(file_paths), desc="Téléchargement des fichiers sur OpenAI", unit="fichier") as pbar:
+        for file_path in file_paths:
+            try:
+                with open(file_path, "rb") as f:
+                    response = openai.files.create(
+                        file=f,
+                        purpose="assistants"
+                    )
+                file_ids.append(response.id)
+                logging.info(f"Fichier téléchargé : {file_path} avec l'ID : {response.id}")
+            except Exception as e:
+                logging.error(f"Erreur lors du téléchargement de {file_path} : {e}")
+            finally:
+                pbar.update(1)
+    logging.info(f"Téléchargement terminé. {len(file_ids)} fichiers téléchargés avec succès.")
+    return file_ids

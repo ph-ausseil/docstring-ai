@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Mac Cli",
+            "type": "python",
+            "request": "launch",
+            "module": "docstring_ai",
+            "args": ["--path=."],
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${env:PYTHONPATH}"
+            },
+            "cwd": "${workspaceFolder}",
+            "pythonPath": "/Users/pierre/Library/Caches/pypoetry/virtualenvs/docstring-ai-YfBHhoCf-py3.11/bin/python"
+        }
+    ]
+}

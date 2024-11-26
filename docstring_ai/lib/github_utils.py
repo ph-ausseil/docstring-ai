@@ -17,12 +17,25 @@ import sys
 import logging
 import difflib
 
-
-def create_github_pr(repo_path, github_token, github_repo, branch_name, pr_name):
+def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch_name: str, pr_name: str) -> None:
     """
-    Creates a GitHub pull request for the specified repository, branch, and PR name.
-    Automatically gathers changed files and includes them in the PR body.
-    Automates Git operations: checkout, add, commit, push.
+    Creates a GitHub pull request for the specified repository, branch, and pull request name.
+
+    This function automates Git operations to create a new branch, commit changes,
+    and push them to a remote repository on GitHub. It also gathers the files that
+    have changed and includes them in the pull request body.
+
+    Args:
+        repo_path (str): The local path to the GitHub repository.
+        github_token (str): The GitHub Access Token used for authentication.
+        github_repo (str): The GitHub repository identifier in the format 'owner/repo'.
+        branch_name (str): The name of the new branch to create for the pull request.
+        pr_name (str): The title of the pull request.
+
+    Raises:
+        GithubException: If there is an issue with the GitHub API (e.g., permission issues).
+        subprocess.CalledProcessError: If any Git command fails during execution.
+        Exception: For any other unexpected errors that may occur.
     """
     try:
         g = Github(github_token)
@@ -69,10 +82,21 @@ def create_github_pr(repo_path, github_token, github_repo, branch_name, pr_name)
     except Exception as e:
         logging.error(f"Error creating GitHub PR: {e}")
 
-
-def commit_and_push_changes(repo_path, branch_name, commit_message):
+def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: str) -> None:
     """
-    Commits and pushes changes to the specified branch.
+    Commits and pushes changes to the specified branch in the given repository.
+
+    This function manages Git operations to switch to the specified branch,
+    add all changes, make a commit with the provided message, and then push
+    the changes to the remote repository.
+
+    Args:
+        repo_path (str): The local path to the GitHub repository.
+        branch_name (str): The name of the branch to which changes will be committed.
+        commit_message (str): The commit message to use when committing changes.
+
+    Raises:
+        subprocess.CalledProcessError: If any Git command fails during execution.
     """
     try:
         subprocess.run(
@@ -96,10 +120,21 @@ def commit_and_push_changes(repo_path, branch_name, commit_message):
         logging.error(f"Git command failed: {e}")
         raise e
 
-
-def get_changed_files(repo_path) -> List[str]:
+def get_changed_files(repo_path: str) -> List[str]:
     """
-    Retrieves a list of changed files in the repository.
+    Retrieves a list of changed files in the given repository since the last commit.
+
+    This function uses Git to determine which files have changed in the local repository
+    by comparing the current state of the working directory to the last commit.
+
+    Args:
+        repo_path (str): The local path to the GitHub repository.
+
+    Returns:
+        List[str]: A list of changed files, filtered to include only Python files ('.py').
+
+    Raises:
+        subprocess.CalledProcessError: If the Git command fails during execution.
     """
     try:
         result = subprocess.run(

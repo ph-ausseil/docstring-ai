@@ -8,7 +8,7 @@ Modules:
 - os: For file and environment operations.
 - openai: To interact with the OpenAI API.
 - chromadb: For embedding and storing code context.
-- logging: For logging messages and errors.
+- LOG: For LOG messages and errors.
 - datetime: For handling date and time operations.
 - subprocess: To run shell commands.
 - sys: For system-specific parameters and functions.
@@ -17,7 +17,10 @@ Modules:
 Functions:
 - main: The entry point of the script that handles argument parsing and execution flow.
 """
-
+from github import Github
+import subprocess
+import re
+from pathlib import Path
 import os
 import openai
 import argparse
@@ -51,18 +54,40 @@ from docstring_ai.lib.utils import (
     sort_files_by_size,
     prompt_user_confirmation,
 )
-from docstring_ai.lib.prompt_utils import add_docstrings_to_code
+from docstring_ai.lib.prompt_utils import create_file_with_docstring
+from docstring_ai.lib.config import CACHE_FILE_NAME, CONTEXT_SUMMARY_PATH, setup_logging
 
 # Load environment variables from .env file
 load_dotenv()
-logging.basicConfig(
-    level=logging.INFO + 1,
-    format='%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d %(message)s',
-    handlers=[
-        logging.FileHandler("docstring_ai.log"),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+setup_logging()
+
+import subprocess
+import re
+import requests
+
+
+def is_git_repo(folder_path):
+    """Check if the folder is a Git repository."""
+    try:
+        subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=folder_path, stderr=subprocess.DEVNULL)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def get_remote_url(folder_path):
+    """Retrieve the remote URL for the Git repository."""
+    try:
+        return subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=folder_path, stderr=subprocess.DEVNULL).strip().decode()
+    except subprocess.CalledProcessError:
+        return None
+
+def parse_github_url(remote_url):
+    """Extract user and repository name from a GitHub remote URL."""
+    match = re.search(r"github\.com[:/](.+?)/(.+?)(?:\.git)?$", remote_url)
+    if match:
+        return match.groups()
+    return None, None
+
 
 def main():
     """
@@ -70,12 +95,8 @@ def main():
 
     This function sets up the command-line interface for configuring the 
     process of adding docstrings to Python files. It handles user input, 
-    performs validations, and orchestrates the docstring generation and 
+    validates arguments, and orchestrates the docstring generation and 
     GitHub integration process.
-
-    It accepts command-line arguments related to file paths, OpenAI API key, 
-    GitHub repository information, and other configuration options for 
-    creating pull requests.
 
     Raises:
         SystemExit: If there are errors in argument parsing or invalid input.
@@ -94,6 +115,7 @@ def main():
     parser.add_argument("--pr-depth", type=int, default=2, help="Depth level for creating PRs per folder. Default is 2.")
     parser.add_argument("--manual", action="store_true", help="Enable manual validation circuits for review.")
     parser.add_argument("--help-flags", action="store_true", help="List and describe all available flags.")
+    parser.add_argument("--no-cache", action="store_true", help="Execute the script without cached values.")
 
     # Parse arguments
     args = parser.parse_args()
@@ -107,10 +129,29 @@ def main():
         print("  --github-token   GitHub personal access token. Defaults to the GITHUB_TOKEN environment variable.")
         print("  --branch-name    Branch name for the PR. Auto-generated if not provided.")
         print("  --pr-name        Custom name for the pull request. Defaults to '-- Add docstrings for files in `path`'.")
-        print("  --pr-depth      Depth level for creating PRs per folder. Default is 2.")
+        print("  --pr-depth       Depth level for creating PRs per folder. Default is 2.")
         print("  --manual         Enable manual validation circuits for review.")
-        print("  --help-flags     List and describe all available flags.")
+        print("  --no-cache       Execute the script without cached values by deleting cache files.")
         return
+
+    # Handle the --no-cache flag
+    if args.no_cache:
+        # Paths for cache and context summary
+        cache_file = os.path.join(args.path, CACHE_FILE_NAME)
+        context_summary_file = os.path.join(args.path, CONTEXT_SUMMARY_PATH)
+
+        # Delete cache files if they exist
+        if os.path.exists(cache_file):
+            os.remove(cache_file)
+            print(f"Deleted cache file: {CACHE_FILE_NAME}")
+        else:
+            print(f"No cache file found: {CACHE_FILE_NAME}")
+
+        if os.path.exists(context_summary_file):
+            os.remove(context_summary_file)
+            print(f"Deleted context summary file: {CONTEXT_SUMMARY_PATH}")
+        else:
+            print(f"No context summary file found: {CONTEXT_SUMMARY_PATH}")
 
     # Retrieve API key
     api_key = args.api_key or os.getenv("OPENAI_API_KEY")
@@ -124,22 +165,40 @@ def main():
         print(f"Error: The specified path '{path}' does not exist.")
         exit(1)
 
+    pr_enabled = args.pr
+    github_repo = args.pr
+    if is_git_repo(path):
+        remote_url = get_remote_url(path)
+        if remote_url:
+            user, repo = parse_github_url(remote_url)
+            if  user and repo : 
+                print(f"The folder {str(Path(path).absolute())} is part of the GitHub repository: {user}/{repo}")
+                proceed = input(f"Do you want to create a pull request on the repository  {user}/{repo} ? (yes/no): ").strip().lower()
+                if proceed == "yes" : 
+                    pr_enabled = True
+                    github_repo = f"{user}/{repo}"
+    
+    if not pr_enabled and os.getenv('GITHUB_REPO') : 
+        proceed = input(f"Do you want to use the folder {os.getenv('GITHUB_REPO')} as GitHub repository ? (yes/no): ").strip().lower()
+        if proceed == "yes" : 
+            github_repo = os.getenv("GITHUB_REPO")
+            pr_enabled = True
+
     # GitHub integration
     github_token = args.github_token or os.getenv("GITHUB_TOKEN")
-    github_repo = args.pr or os.getenv("GITHUB_REPO")
     pr_depth = args.pr_depth
     branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
     manual = args.manual
 
-    if not github_repo:
+    if not pr_enabled:
         print("\n⚠️ WARNING: You are running the script without GitHub PR creation.")
         print("Modified files will be directly edited in place. Proceed with caution!")
         if not prompt_user_confirmation("Do you wish to continue?"):
             print("Operation aborted by the user.")
             sys.exit(0)
 
-    if github_repo:
+    if pr_enabled and github_repo:
         if not github_token:
             print("Error: GitHub token must be provided via --github-token or the GITHUB_TOKEN environment variable.")
             exit(1)
@@ -159,8 +218,15 @@ def main():
 
     # Process files and handle PRs
     process_files_and_create_prs(
-        path, api_key, args.pr is not None, github_token, 
-        github_repo, branch_name, pr_name, pr_depth, manual
+        repo_path= path,
+        api_key=api_key,
+        create_pr= pr_enabled,
+        github_token=github_token, 
+        github_repo=github_repo, 
+        branch_name=branch_name, 
+        pr_name=pr_name, 
+        pr_depth=pr_depth, 
+        manual=manual
     )
 
 if __name__ == "__main__":
