@@ -318,11 +318,12 @@ def process_files_and_create_prs(
                 folder_pr_name = f"-- Add docstrings for folder `{folder_rel_path}`" if not pr_name else pr_name
 
                 # Create GitHub PR
+
                 create_github_pr(
                     repo_path=repo_path, 
                     github_token=github_token, 
                     github_repo=github_repo, 
-                    branch_name=folder_branch_name, 
+                    branch_base_name=folder_branch_name, 
                     pr_name=folder_pr_name
                 )
 
