@@ -147,7 +147,7 @@ def get_relevant_context(collection: chromadb.Collection, classes: List[str], ma
         context = ""
         token_count = 0
         # Corrected join operation
-        query = classes.join(" ")
+        query = " ".join(classes)
         results = collection.query(
                 query_texts=[query],
                 n_results=5,  # Adjust based on desired breadth,
