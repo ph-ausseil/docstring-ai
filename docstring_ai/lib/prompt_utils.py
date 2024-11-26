@@ -427,7 +427,7 @@ def poll_run_completion(run_id: str, thread_id: str, functions : Dict[str, Calla
                 else:
                     logging.debug(f"Run {run_id} still in progress. Waiting...")
                     if status == "requires_action":
-                        for tool_call in tool_calls:
+                        for tool_call in current_run.required_action.submit_tool_outputs.tool_calls:
                             if tool_call.function.name == "write_file_with_new_docstring":
                                 return_value = functions[tool_call.function.name](**json.loads(tool_call.function.arguments))
 
