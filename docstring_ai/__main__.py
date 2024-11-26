@@ -37,7 +37,7 @@ from datetime import datetime
 from github import Github, GithubException
 import subprocess
 import sys
-from docstring_ai.lib.logger import logging, show_file_progress
+import logging
 import difflib
 from docstring_ai.lib.docstring_utils import (
     parse_classes,

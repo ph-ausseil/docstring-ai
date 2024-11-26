@@ -5,17 +5,18 @@ embeds the files in ChromaDB, and integrates with GitHub for pull request creati
 Functions:
 - process_files_and_create_prs: Processes Python files, adds docstrings, and creates pull requests.
 """
-
 import json
 import os
-from pathlib import Path
 import logging
-from docstring_ai.lib.logger import show_file_progress
-import openai
-import datetime
-import tiktoken
+from pathlib import Path
+from typing import List, Dict
+from functools import partial, wraps
+from datetime import datetime
 
-from functools import partial 
+import openai
+import tiktoken
+from tqdm import tqdm
+
 from docstring_ai.lib.utils import (
     ensure_docstring_header,
     check_git_repo,
@@ -43,13 +44,10 @@ from docstring_ai.lib.chroma_utils import (
     initialize_chroma,
     get_or_create_collection,
     embed_and_store_files,
-    get_relevant_context,
     store_class_summary
 )
 from docstring_ai.lib.docstring_utils import (
-    parse_classes,
     DocstringExtractor,
-    extract_description_from_docstrings
 )
 from docstring_ai.lib.github_utils import create_github_pr
 from docstring_ai import (
@@ -58,7 +56,7 @@ from docstring_ai import (
     CACHE_FILE_NAME, 
     DATA_PATH, 
     CONTEXT_SUMMARY_PATH
-    )
+)
 
 def process_files_and_create_prs(
     repo_path: str, 
@@ -155,8 +153,6 @@ def process_files_and_create_prs(
     # Step 3: Compute SHA-256 hashes and filter out unchanged files
     logging.info("\nChecking file hashes...")
     files_to_process = filter_files_by_hash(python_files_sorted, repo_path, cache)
-    files_to_process =  [item for item in files_to_process if item is not None ]
-
     logging.info(f"\n{len(files_to_process)} files to process after cache check.")
 
     if not files_to_process:
@@ -167,14 +163,14 @@ def process_files_and_create_prs(
     logging.info("\nTraversing repository to categorize folders based on pr_depth...")
     folder_dict = traverse_repo(repo_path, pr_depth)
     logging.info(f"Found {len(folder_dict)} depth levels up to {pr_depth}.")
-    
+
     ###
     ### EMBED
     ###
 
     # Load Context Summary
     context_summary_full_path = os.path.join(repo_path, CONTEXT_SUMMARY_PATH)
-    context_summary = []  # Initialize context_summary as an empty list by default
+    context_summary = []
     if os.path.exists(context_summary_full_path):
         try:
             with open(context_summary_full_path, 'r', encoding='utf-8') as f:
@@ -189,9 +185,9 @@ def process_files_and_create_prs(
 
     # Step 6: Upload files to OpenAI and update Assistant's tool resources
     logging.info("\nUploading files to OpenAI...")
-    file_ids = upload_files_to_openai(files_to_process)
+    python_file_ids = upload_files_to_openai(files_to_process)
 
-    if not file_ids:
+    if not python_file_ids:
         logging.error("No files were successfully uploaded to OpenAI. Exiting.")
         return
 
@@ -209,23 +205,24 @@ def process_files_and_create_prs(
     update_assistant_tool_resources(
         api_key=api_key,
         assistant_id=assistant_id,
-        file_ids=file_ids
-        )
+        file_ids=python_file_ids
+    )
 
     # Step 8: Create a Thread
     logging.info("\nCreating a new Thread...")
     thread_id = create_thread(
         api_key=api_key, 
         assistant_id=assistant_id
-        )
+    )
     if not thread_id:
         logging.error("Thread creation failed. Exiting.")
         return
 
     # Ensure the './data/' directory exists
     output_dir = DATA_PATH
-    output_dir.mkdir(parents=True, exist_ok=True)  # Creates the directory if it doesn't exist
-    # Step 9 : Create Missing Context 
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Step 9: Create Missing Context 
     file_descriptions_list = []
     for file in files_to_process: 
         if not any(entry["file"] == file for entry in context_summary): 
@@ -250,32 +247,39 @@ def process_files_and_create_prs(
             })
             # Append to context_summary for future use
 
-    # TODO: Add context to both vector stores
-    # Step 10: Embed and store files in ChromaDB
-    logging.info("\nEmbedding and storing Python files in ChromaDB...")
-    embed_and_store_files(collection=collection, 
-    python_files= file_descriptions_list,
-    tags={"file_type" : "description"})
+    # Step 10: Embed and store context descriptions in ChromaDB
+    logging.info("\nEmbedding and storing Python file descriptions in ChromaDB...")
+    embed_and_store_files(
+        collection=collection, 
+        python_files=file_descriptions_list,
+        tags={"file_type": "description"})
 
-    # Step 11: Upload files to OpenAI and update Assistant's tool resources
-    logging.info("\nUploading files to OpenAI...")
-    file_ids.extend(upload_files_to_openai(file_descriptions_list))
-    update_assistant_tool_resources(api_key, assistant_id, file_ids)
- 
-    # Step 12: Process Each Python File for Docstrings using the decorated function
-    logging.info("\nProcessing Python files to add docstrings...")
-    process_single_file(
-        files=files_to_process,
-        repo_path=repo_path,
+    # Step 11: Upload context descriptions to OpenAI and update Assistant's tool resources
+    logging.info("\nUploading file descriptions to OpenAI...")
+    description_file_ids = upload_files_to_openai(files=[str(fp) for fp in file_descriptions_list])
+
+    update_assistant_tool_resources(
+        api_key=api_key,
         assistant_id=assistant_id,
-        thread_id=thread_id,
-        collection=collection,
-        context_summary=context_summary,
-        cache=cache,
-        manual=manual
-    )
+        file_ids= python_file_ids + description_file_ids)
 
-    # Step 10: Save Context Summary
+    # Step 12: Process Each Python File for Docstrings
+    logging.info("\nProcessing Python files to add docstrings...")
+    with tqdm(total=len(files_to_process), desc="Adding docstrings", unit="file", dynamic_ncols=True) as pbar:
+        for file_path in files_to_process:
+            process_single_file(
+                file_path=file_path,
+                repo_path=repo_path,
+                assistant_id=assistant_id,
+                thread_id=thread_id,
+                collection=collection,
+                context_summary=context_summary,
+                cache=cache,
+                manual=manual
+            )
+            pbar.update(1)
+
+    # Step 13: Save Context Summary
     try:
         with open(context_summary_full_path, "w", encoding='utf-8') as f:
             json.dump(context_summary, f, indent=2)
@@ -283,10 +287,10 @@ def process_files_and_create_prs(
     except Exception as e:
         logging.error(f"Error saving context summary: {e}")
 
-    # Step 11: Save Cache
+    # Step 14: Save Cache
     save_cache(cache_path, cache)
 
-    # Step 12: Create Pull Requests Based on pr_depth
+    # Step 15: Create Pull Requests Based on pr_depth
     if create_pr and git_present and github_token and github_repo:
         if manual:
             # Show summary of PRs to be created and ask for confirmation
@@ -308,7 +312,7 @@ def process_files_and_create_prs(
 
                 # Generate a unique branch name for the folder
                 folder_rel_path = os.path.relpath(folder, repo_path).replace(os.sep, "_")
-                folder_branch_name = f"feature/docstrings-folder-{folder_rel_path}-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+                folder_branch_name = f"feature/docstrings-folder-{folder_rel_path}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
                 # Generate PR name
                 folder_pr_name = f"-- Add docstrings for folder `{folder_rel_path}`" if not pr_name else pr_name
@@ -321,8 +325,6 @@ def process_files_and_create_prs(
                     branch_name=folder_branch_name, 
                     pr_name=folder_pr_name
                 )
-
-@show_file_progress(desc="Processing Python Files", leave=True)
 def process_single_file(
     file_path: str,
     repo_path: str,
@@ -575,8 +577,7 @@ def approve_and_save_file(
         return new_file_content
 
 
-@show_file_progress(desc="Checking file hashes", leave=True)
-def filter_files_by_hash(file_path, repo_path, cache):
+def filter_files_by_hash(file_paths: List[str], repo_path: str, cache: Dict[str, str]) -> List[str]:
     """
     Filters a single file based on SHA-256 hash and cache.
 
@@ -588,15 +589,28 @@ def filter_files_by_hash(file_path, repo_path, cache):
     Returns:
         str: File path if it needs processing, otherwise None.
     """
-    current_hash = compute_sha256(file_path)
-    cached_hash = cache.get(os.path.relpath(file_path, repo_path))
-    if current_hash != cached_hash:
-        return file_path  # Return files that need processing
-    return None  # Skip unchanged files
+    changed_files = []
+    logging.info("Début de la vérification des hashs de fichiers...")
+    
+    with tqdm(total=len(file_paths), desc="Vérification des hashs de fichiers", unit="fichier") as pbar:
+        for file_path in file_paths:
+            try:
+                current_hash = compute_sha256(file_path)
+                relative_path = os.path.relpath(file_path, repo_path)
+                cached_hash = cache.get(relative_path)
+                
+                if current_hash != cached_hash:
+                    changed_files.append(file_path)
+            except Exception as e:
+                logging.error(f"Erreur lors de la vérification de {file_path} : {e}")
+            finally:
+                pbar.update(1)
+    
+    logging.info(f"Vérification terminée. {len(changed_files)} fichiers nécessitent un traitement.")
+    return changed_files
 
 
-@show_file_progress(desc="Uploading files to OpenAI", leave=True)
-def upload_files_to_openai(file_path):
+def upload_files_to_openai(file_paths: List[str]) -> List[str]:
     """
     Uploads a single file to OpenAI and returns the file ID.
 
@@ -606,14 +620,21 @@ def upload_files_to_openai(file_path):
     Returns:
         str: File ID from OpenAI or None on failure.
     """
-    try:
-        with open(file_path, "rb") as f:
-            response = openai.files.create(
-                file=f,
-                purpose="assistants"
-            )
-        logging.info(f"Updated file : {file_path}")
-        return response.id  # Return the file ID
-    except Exception as e:
-        logging.error(f"Error uploading {file_path} to OpenAI: {e}")
-        return None
+    file_ids = []
+    logging.info("Début du téléchargement des fichiers sur OpenAI...")
+    with tqdm(total=len(file_paths), desc="Téléchargement des fichiers sur OpenAI", unit="fichier") as pbar:
+        for file_path in file_paths:
+            try:
+                with open(file_path, "rb") as f:
+                    response = openai.files.create(
+                        file=f,
+                        purpose="assistants"
+                    )
+                file_ids.append(response.id)
+                logging.info(f"Fichier téléchargé : {file_path} avec l'ID : {response.id}")
+            except Exception as e:
+                logging.error(f"Erreur lors du téléchargement de {file_path} : {e}")
+            finally:
+                pbar.update(1)
+    logging.info(f"Téléchargement terminé. {len(file_ids)} fichiers téléchargés avec succès.")
+    return file_ids

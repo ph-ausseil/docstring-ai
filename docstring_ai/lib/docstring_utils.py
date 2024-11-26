@@ -16,7 +16,7 @@ import time
 import ast
 import logging
 from typing import List, Dict
-from docstring_ai.lib.logger import show_file_progress
+import logging
 from docstring_ai import RETRY_BACKOFF
 from docstring_ai.lib.prompt_utils import extract_code_from_message
 
@@ -128,14 +128,14 @@ from typing import List
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging = logging.getLogger(__name__)
 import ast
 import logging
 from typing import Dict, List, Optional, Union
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging = logging.getLogger(__name__)
 
 class DocstringExtractor:
     """
@@ -164,16 +164,16 @@ class DocstringExtractor:
             FileNotFoundError: If the file does not exist.
             IOError: If there is an error reading the file.
         """
-        logger.info(f"Reading file: {self.file_path}")
+        logging.info(f"Reading file: {self.file_path}")
         try:
             with open(self.file_path, 'r', encoding='utf-8') as f:
                 self.file_content = f.read()
-            logger.debug("File read successfully.")
+            logging.debug("File read successfully.")
         except FileNotFoundError:
-            logger.error(f"File not found: {self.file_path}")
+            logging.error(f"File not found: {self.file_path}")
             raise
         except IOError as e:
-            logger.error(f"IO error when reading file {self.file_path}: {e}")
+            logging.error(f"IO error when reading file {self.file_path}: {e}")
             raise
 
     def parse_ast(self) -> None:
@@ -185,15 +185,15 @@ class DocstringExtractor:
             ValueError: If file_content is not set.
         """
         if self.file_content is None:
-            logger.error("File content is not loaded. Call read_file() first.")
+            logging.error("File content is not loaded. Call read_file() first.")
             raise ValueError("File content is not loaded.")
 
-        logger.info("Parsing AST.")
+        logging.info("Parsing AST.")
         try:
             self.tree = ast.parse(self.file_content, filename=self.file_path)
-            logger.debug("AST parsed successfully.")
+            logging.debug("AST parsed successfully.")
         except SyntaxError as e:
-            logger.error(f"Syntax error in file {self.file_path}: {e}")
+            logging.error(f"Syntax error in file {self.file_path}: {e}")
             raise
 
     def extract_docstrings(self) -> None:
@@ -208,15 +208,15 @@ class DocstringExtractor:
         For methods within classes, the key is 'ClassName.method_name'.
         """
         if self.tree is None:
-            logger.error("AST is not parsed. Call parse_ast() first.")
+            logging.error("AST is not parsed. Call parse_ast() first.")
             raise ValueError("AST is not parsed.")
 
-        logger.info("Extracting docstrings.")
+        logging.info("Extracting docstrings.")
         # Extract module-level docstring
         module_docstring = ast.get_docstring(self.tree)
         if module_docstring:
             self.docstrings['module'] = {'type': 'module', 'docstring': module_docstring}
-            logger.debug("Module docstring extracted.")
+            logging.debug("Module docstring extracted.")
 
         def _extract(element: ast.AST, parent_name: Optional[str] = None) -> None:
             """
@@ -233,7 +233,7 @@ class DocstringExtractor:
                     class_doc = ast.get_docstring(node)
                     if class_doc:
                         self.docstrings[qualified_name] = {'type': 'class', 'docstring': class_doc}
-                        logger.debug(f"Class docstring extracted for '{qualified_name}'.")
+                        logging.debug(f"Class docstring extracted for '{qualified_name}'.")
                     # Recursively extract from the class
                     _extract(node, qualified_name)
                 elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -243,7 +243,7 @@ class DocstringExtractor:
                     func_doc = ast.get_docstring(node)
                     if func_doc:
                         self.docstrings[qualified_name] = {'type': func_type, 'docstring': func_doc}
-                        logger.debug(f"{func_type.capitalize()} docstring extracted for '{qualified_name}'.")
+                        logging.debug(f"{func_type.capitalize()} docstring extracted for '{qualified_name}'.")
                     # Recursively extract from the function (e.g., nested functions)
                     _extract(node, qualified_name)
                 # Add other element types if needed (e.g., modules within packages)
@@ -251,7 +251,7 @@ class DocstringExtractor:
         # Start extracting from the module level
         _extract(self.tree)
 
-        logger.info(f"Total docstrings extracted: {len(self.docstrings)}")
+        logging.info(f"Total docstrings extracted: {len(self.docstrings)}")
 
     def list_imports_from_package(self, package: str) -> List[str]:
         """
@@ -267,10 +267,10 @@ class DocstringExtractor:
             ValueError: If the AST is not parsed.
         """
         if self.tree is None:
-            logger.error("AST is not parsed. Call parse_ast() first.")
+            logging.error("AST is not parsed. Call parse_ast() first.")
             raise ValueError("AST is not parsed.")
 
-        logger.info(f"Starting to parse imports from '{package}' in file: {self.file_path}")
+        logging.info(f"Starting to parse imports from '{package}' in file: {self.file_path}")
         imported_names: List[str] = []
 
         for node in ast.walk(self.tree):
@@ -278,20 +278,20 @@ class DocstringExtractor:
                 module = node.module
                 if module is None:
                     # Handles cases like 'from . import something'
-                    logger.debug(f"Skipping relative import in file {self.file_path}.")
+                    logging.debug(f"Skipping relative import in file {self.file_path}.")
                     continue
 
                 # Check if the module matches the target package
                 if module == package or module.startswith(f"{package}."):
                     for alias in node.names:
                         if alias.name == '*':
-                            logger.warning(f"Wildcard import detected in {self.file_path} from {module}. Skipping.")
+                            logging.warning(f"Wildcard import detected in {self.file_path} from {module}. Skipping.")
                             continue
                         imported_names.append(alias.name)
                         
-                    logger.debug(f"Imported '{' '.join(imported_names)}' from '{module}'.")
+                    logging.debug(f"Imported '{' '.join(imported_names)}' from '{module}'.")
 
-        logger.info(f"Total imports found from '{package}': {len(imported_names)}")
+        logging.info(f"Total imports found from '{package}': {len(imported_names)}")
         return imported_names
 
     def compile(self) -> str:
@@ -301,14 +301,14 @@ class DocstringExtractor:
         Returns:
             str: The compiled docstrings in a readable text format.
         """
-        logger.info("Compiling docstrings into readable text.")
+        logging.info("Compiling docstrings into readable text.")
         compiled_text = ""
         for element, info in self.docstrings.items():
             compiled_text += f"{element} ({info['type']}):\n{info['docstring']}\n\n"
-            logger.debug(f"Compiled docstring for '{element}'.")
+            logging.debug(f"Compiled docstring for '{element}'.")
 
         compiled_text = compiled_text.strip()  # Remove trailing whitespace
-        logger.info("Compilation complete.")
+        logging.info("Compilation complete.")
         return compiled_text
 
     def get_docstrings_dict(self) -> Dict[str, Dict[str, str]]:
@@ -333,7 +333,7 @@ class DocstringExtractor:
             self.extract_docstrings()
             return self.docstrings
         except Exception as e:
-            logger.error(f"Failed to extract docstrings: {e}")
+            logging.error(f"Failed to extract docstrings: {e}")
             return {}
 
     def process_imports(self, package: str) -> List[str]:
@@ -356,5 +356,5 @@ class DocstringExtractor:
             self.imports[package] = imports
             return imports
         except Exception as e:
-            logger.error(f"Failed to list imports from package '{package}': {e}")
+            logging.error(f"Failed to list imports from package '{package}': {e}")
             return []

@@ -14,7 +14,7 @@ from datetime import datetime
 from github import Github, GithubException
 import subprocess
 import sys
-from docstring_ai.lib.logger import show_file_progress
+import logging
 import difflib
 
 def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch_name: str, pr_name: str) -> None:
