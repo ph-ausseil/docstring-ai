@@ -370,7 +370,6 @@ def create_vector_store(vector_store_name: str, file_ids: List[str]) -> str:
     openai.beta.vector_stores.file_batches.create(
         vector_store_id=vector_store.id,
         file_ids=file_ids,
-        e
     )
     return vector_store.id
 
