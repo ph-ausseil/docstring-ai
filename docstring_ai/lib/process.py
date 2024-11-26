@@ -182,7 +182,7 @@ def process_files_and_create_prs(
 
     # Step 5: Embed and store files in ChromaDB
     logging.info("\nEmbedding and storing Python files in ChromaDB...")
-    embed_and_store_files(collection=collection, python_files=files_to_process, tags={file_type : "script"})
+    embed_and_store_files(collection=collection, python_files=files_to_process, tags={"file_type" : "script"})
 
     # Step 6: Upload files to OpenAI and update Assistant's tool resources
     logging.info("\nUploading files to OpenAI...")
@@ -252,7 +252,7 @@ def process_files_and_create_prs(
     logging.info("\nEmbedding and storing Python files in ChromaDB...")
     embed_and_store_files(collection=collection, 
     python_files= file_descriptions_list,
-    tags={file_type : "description"})
+    tags={"file_type" : "description"})
 
     # Step 11: Upload files to OpenAI and update Assistant's tool resources
     logging.info("\nUploading files to OpenAI...")
