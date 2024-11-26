@@ -165,22 +165,24 @@ def main():
         print(f"Error: The specified path '{path}' does not exist.")
         exit(1)
 
-    
+    pr_enabled = args.pr
     github_repo = args.pr
     if is_git_repo(path):
         remote_url = get_remote_url(path)
         if remote_url:
             user, repo = parse_github_url(remote_url)
             if  user and repo : 
-                print(f"The folder {path} is part of the GitHub repository: {user}/{repo}")
-                proceed = input("Do you want to create a pull request on this repository? (yes/no): ").strip().lower()
+                print(f"The folder {str(Path(path).absolute())} is part of the GitHub repository: {user}/{repo}")
+                proceed = input(f"Do you want to create a pull request on the repository  {user}/{repo} ? (yes/no): ").strip().lower()
                 if proceed == "yes" : 
+                    pr_enabled = True
                     github_repo = f"{user}/{repo}"
     
-    if github_repo : 
-        proceed = input(f"Do you want to use The folder {os.getenv('GITHUB_REPO')} as GitHub repository ? (yes/no): ").strip().lower()
+    if not pr_enabled and os.getenv('GITHUB_REPO') : 
+        proceed = input(f"Do you want to use the folder {os.getenv('GITHUB_REPO')} as GitHub repository ? (yes/no): ").strip().lower()
         if proceed == "yes" : 
             github_repo = os.getenv("GITHUB_REPO")
+            pr_enabled = True
 
     # GitHub integration
     github_token = args.github_token or os.getenv("GITHUB_TOKEN")
@@ -189,14 +191,14 @@ def main():
     pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
     manual = args.manual
 
-    if not github_repo:
+    if not pr_enabled:
         print("\n⚠️ WARNING: You are running the script without GitHub PR creation.")
         print("Modified files will be directly edited in place. Proceed with caution!")
         if not prompt_user_confirmation("Do you wish to continue?"):
             print("Operation aborted by the user.")
             sys.exit(0)
 
-    if github_repo:
+    if pr_enabled and github_repo:
         if not github_token:
             print("Error: GitHub token must be provided via --github-token or the GITHUB_TOKEN environment variable.")
             exit(1)
@@ -218,7 +220,7 @@ def main():
     process_files_and_create_prs(
         repo_path= path,
         api_key=api_key,
-        create_pr= github_repo,
+        create_pr= pr_enabled,
         github_token=github_token, 
         github_repo=github_repo, 
         branch_name=branch_name, 
