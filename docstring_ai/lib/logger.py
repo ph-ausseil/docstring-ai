@@ -31,13 +31,14 @@ def show_file_progress(desc="Processing files", excluded_values = [], **kwargs):
 
     Args:
         desc (str): Description for the progress bar.
+        excluded_values (list): List of values to exclude from the results.
         **kwargs: Additional arguments for `tqdm` customization.
 
     Returns:
-        function: The wrapped function that processes the files.
+        function: The wrapped function that processes the files and returns results.
 
     Raises:
-        Any exceptions raised by the decorated function during file processing will be propagated.
+        Any exceptions raised by the decorated function during file processing.
     """
     def decorator(func):
         @wraps(func)
