@@ -14,7 +14,7 @@ Functions:
 """
 import time
 import openai
-from openai.types import vector_store_create_params
+from openai.types.beta import vector_store_create_params
 import chromadb
 from docstring_ai.lib.chroma_utils import get_relevant_context
 import logging
