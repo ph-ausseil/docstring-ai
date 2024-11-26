@@ -439,7 +439,7 @@ def process_single_file(
         thread_id=thread_id,
         code=original_code,
         context=few_shot_prompt,
-        functions=[{"write_file_with_new_docstring": patched_approve_and_save_file}]
+        functions={"write_file_with_new_docstring": patched_approve_and_save_file}
     )
 
 
