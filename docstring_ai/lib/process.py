@@ -325,6 +325,8 @@ def process_files_and_create_prs(
                     branch_name=folder_branch_name, 
                     pr_name=folder_pr_name
                 )
+
+
 def process_single_file(
     file_path: str,
     repo_path: str,
@@ -401,30 +403,25 @@ def process_single_file(
         file_description = cached_entry.get("description", "")
         logging.info(f"Using cached description for {file_path}.")
     else: 
-        logging.error("No file description : Cached or Created in `process_files_and_create_prs` ")
+        logging.error("No file description: Cached or Created in `process_files_and_create_prs` ")
+        file_description = ""  # Initialize to empty string or handle accordingly
 
     extractor = DocstringExtractor(file_path=file_path)
     extractor.process()
     classes = extractor.process_imports(package='docstring_ai.lib')    
-    # if not classes:
-    #     logging.warning(f"No classes found in {file_path}. Skipping context retrieval.")
-    #     context = file_description
-    # else:
-    #     # Retrieve relevant context summaries from ChromaDB
-    #     context = get_relevant_context(collection, classes, max_tokens=MAX_TOKENS // 2)  # Allocate half tokens to context
-    #     logging.info(f"Retrieved context with {len(tiktoken.get_encoding('gpt4').encode(context))} tokens.")
 
     # Construct few-shot prompt
     few_shot_prompt = construct_few_shot_prompt(
-        collection= collection, 
+        collection=collection, 
         classes=classes, 
         max_tokens=MAX_TOKENS - len(original_code),
-        context= file_description
-        )
+        context=file_description
+    )
 
     # Add docstrings using Assistant's API
-    logging.info(f"Generating new docstrings for : {file_path}")
+    logging.info(f"Generating new docstrings for: {file_path}")
 
+    # Create a partial function for approval and saving
     patched_approve_and_save_file = partial(
         approve_and_save_file,
         original_code=original_code,
@@ -437,7 +434,9 @@ def process_single_file(
         assistant_id=assistant_id,
         thread_id=thread_id,
     )
-    return create_file_with_docstring(
+
+    # Generate and apply docstrings
+    result = create_file_with_docstring(
         assistant_id=assistant_id,
         thread_id=thread_id,
         code=original_code,
@@ -445,11 +444,16 @@ def process_single_file(
         functions={"write_file_with_new_docstring": patched_approve_and_save_file}
     )
 
+    if result:
+        logging.info(f"Docstrings successfully added and saved for {file_path}.")
+    else:
+        logging.warning(f"Docstrings not added for {file_path}.")
+
 
 def approve_and_save_file(
     new_file_content: str,
     original_code: str,
-    file_path: str,
+    python_file_path: str,
     repo_path: str,
     manual: bool,
     context_summary: list,
@@ -457,13 +461,13 @@ def approve_and_save_file(
     collection,
     assistant_id: str,
     thread_id: str,
-) -> None:
+) -> bool:
     """
     Approves and saves the modified code, handles manual validation, updates context, and cache.
 
     Args:
+        new_file_content (str): The code after adding docstrings.
         original_code (str): The original code before modification.
-        modified_code (str): The code after adding docstrings.
         file_path (str): The path to the Python file.
         repo_path (str): The repository path.
         manual (bool): Flag indicating if manual approval is required.
@@ -474,50 +478,75 @@ def approve_and_save_file(
         thread_id (str): The thread ID for OpenAI interactions.
 
     Returns:
-        None
+        bool: True if the file was successfully updated and saved, False otherwise.
     """
-    if new_file_content and new_file_content != original_code:
-        # Ensure the header is added if not present
-        new_file_content = ensure_docstring_header(new_file_content)
-        
-        if manual:
-            diff = show_diff(original_code, new_file_content)
-            print(f"\n--- Diff for {file_path} ---\n{diff}\n--- End of Diff ---\n")
-            if not prompt_user_confirmation(f"Do you approve changes for {file_path}?"):
-                logging.info(
-                    f"Changes for {file_path} were not approved by the user."
-                )
-                return False # Skip applying changes
-
+    # Check if there's any change in the file content
+    if not new_file_content:
+        logging.info(f"No changes made to {python_file_path}.")
+        # Update cache even if no changes to prevent reprocessing unchanged files
+        relative_path = os.path.relpath(python_file_path, repo_path)
         try:
-            # Backup original file only if needed
-            if not check_git_repo(repo_path):
-                # No Git: Always create a backup
-                create_backup(file_path)
-            elif check_git_repo(repo_path) and file_has_uncommitted_changes(
-                repo_path, file_path
-            ):
-                # Git is present: Backup if the file has uncommitted changes
-                create_backup(file_path)
+            current_hash = compute_sha256(python_file_path)
+            cache[relative_path] = current_hash
+            logging.info(f"Cache updated for unchanged file: {python_file_path}")
+        except Exception as e:
+            logging.error(f"Error computing hash for {python_file_path}: {e}")
+        return False  # Indicate that no changes were made
 
-            # Update the file with modified code
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(new_file_content)
-            logging.info(f"Updated docstrings in {file_path}")
+    if new_file_content == original_code:
+        logging.info(f"No changes detected for {python_file_path}.")
+        return False  # Indicate that no changes were made
 
-            # **New Step: Get Detailed File Description After Adding Docstrings**
-            logging.info(
-                f"Generating updated description for {file_path} after adding docstrings..."
-            )
+    # Ensure the header is added if not present
+    try:
+        new_file_content = ensure_docstring_header(new_file_content)
+    except Exception as e:
+        logging.error(f"Error ensuring docstring header for {python_file_path}: {e}")
+        return False
+
+    # Handle manual approval if required
+    if manual:
+        try:
+            diff = show_diff(original_code, new_file_content)
+            print(f"\n--- Diff for {python_file_path} ---\n{diff}\n--- End of Diff ---\n")
+            if not prompt_user_confirmation(f"Do you approve changes for {python_file_path}?"):
+                logging.info(f"Changes for {python_file_path} were not approved by the user.")
+                return False  # Indicate that changes were not approved
+        except Exception as e:
+            logging.error(f"Error during manual approval for {python_file_path}: {e}")
+            return False
+
+    try:
+        # Backup original file only if needed
+        if not check_git_repo(repo_path):
+            # No Git: Always create a backup
+            create_backup(python_file_path)
+            logging.info(f"File Backup created for {python_file_path} (no Git).")
+        elif file_has_uncommitted_changes(repo_path, python_file_path):
+            # Git is present: Backup if the file has uncommitted changes
+            create_backup(python_file_path)
+            logging.info(f"Backup created for {python_file_path} (uncommitted changes).")
+
+        # Update the file with modified code
+        with open(python_file_path, "w", encoding="utf-8") as f:
+            f.write(new_file_content)
+        logging.info(f"Updated docstrings in {python_file_path}")
+
+        # Generate updated file description after adding docstrings
+        try:
             updated_file_description = generate_file_description(
                 assistant_id=assistant_id,
                 thread_id=thread_id,
                 file_content=new_file_content,
             )
-            logging.info(f"Updated description for {file_path}")
+            logging.info(f"Updated description for {python_file_path}")
+        except Exception as e:
+            logging.error(f"Error generating updated description for {python_file_path}: {e}")
+            return False
 
-            # Update context_summary with the updated description
-            relative_path = os.path.relpath(file_path, repo_path)
+        # Update context_summary with the updated description
+        relative_path = os.path.relpath(python_file_path, repo_path)
+        try:
             cached_entry = next(
                 (
                     item
@@ -529,9 +558,7 @@ def approve_and_save_file(
             if cached_entry:
                 # Update existing entry
                 cached_entry["description"] = updated_file_description
-                logging.info(
-                    f"Updated cached description for {file_path}."
-                )
+                logging.info(f"Updated cached description for {python_file_path}.")
             else:
                 # Append new entry
                 context_summary.append(
@@ -540,41 +567,43 @@ def approve_and_save_file(
                         "description": updated_file_description,
                     }
                 )
+                logging.info(f"Added new description for {python_file_path} to context summary.")
+        except Exception as e:
+            logging.error(f"Error updating context summary for {python_file_path}: {e}")
+            return False
 
-            # Update cache with new hash
-            new_hash = compute_sha256(file_path)
+        # Update cache with new hash
+        try:
+            new_hash = compute_sha256(python_file_path)
             cache[relative_path] = new_hash
-            logging.info(f"Updated cache for file: {file_path}")
+            logging.info(f"Updated cache for file: {python_file_path}")
+        except Exception as e:
+            logging.error(f"Error computing new hash for {python_file_path}: {e}")
+            return False
 
-            # Assuming modified_classes is available or can be retrieved
-            extractor = DocstringExtractor(file_path=file_path)
+        # Process class summaries
+        try:
+            extractor = DocstringExtractor(file_path=python_file_path)
             extractor.process()
             modified_classes = extractor.process_imports(package="docstring_ai.lib")
-            try : 
-                for class_name in modified_classes:
-                    # Extract the docstring for each class
-                    class_docstring = extractor.get_class_docstring(class_name)
-                    if class_docstring:
-                        summary = extractor.compile()  # First line as summary
-                        store_class_summary(
-                            collection, relative_path, class_name, summary
-                        )
-            except Exception as e:
-                logging.warning(f"Error refreshing internal vector for file {file_path}: {e}")           
-                
-            return new_file_content
 
+            for class_name in modified_classes:
+                # Extract the docstring for each class
+                class_docstring = extractor.get_class_docstring(class_name)
+                if class_docstring:
+                    summary = extractor.compile()  # Assuming compile returns the first line as summary
+                    store_class_summary(
+                        collection, relative_path, class_name, summary
+                    )
+                    logging.info(f"Stored summary for class {class_name} in {python_file_path}.")
         except Exception as e:
-            logging.error(f"Error updating file {file_path}: {e}")
-            return False
-    else:
-        logging.info(f"No changes made to {file_path}.")
-        # Update cache even if no changes to prevent reprocessing unchanged files
-        relative_path = os.path.relpath(file_path, repo_path)
-        current_hash = compute_sha256(file_path)
-        cache[relative_path] = current_hash
-    
-        return new_file_content
+            logging.warning(f"Error refreshing internal vector for file {python_file_path}: {e}")
+
+        return True  # Indicate success
+
+    except Exception as e:
+        logging.error(f"Error updating file {python_file_path}: {e}")
+        return False  # Indicate failure
 
 
 def filter_files_by_hash(file_paths: List[str], repo_path: str, cache: Dict[str, str]) -> List[str]:
