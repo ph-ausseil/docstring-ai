@@ -475,16 +475,16 @@ def approve_and_save_file(
     """
     if new_file_content and new_file_content != original_code:
         # Ensure the header is added if not present
-        modified_code = ensure_docstring_header(new_file_content)
+        new_file_content = ensure_docstring_header(new_file_content)
         
         if manual:
-            diff = show_diff(original_code, modified_code)
+            diff = show_diff(original_code, new_file_content)
             print(f"\n--- Diff for {file_path} ---\n{diff}\n--- End of Diff ---\n")
             if not prompt_user_confirmation(f"Do you approve changes for {file_path}?"):
                 logging.info(
                     f"Changes for {file_path} were not approved by the user."
                 )
-                return  # Skip applying changes
+                return False # Skip applying changes
 
         try:
             # Backup original file only if needed
@@ -556,15 +556,20 @@ def approve_and_save_file(
                     store_class_summary(
                         collection, relative_path, class_name, summary
                     )
+                
+            return new_file_content
 
         except Exception as e:
             logging.error(f"Error updating file {file_path}: {e}")
+            return False
     else:
         logging.info(f"No changes made to {file_path}.")
         # Update cache even if no changes to prevent reprocessing unchanged files
         relative_path = os.path.relpath(file_path, repo_path)
         current_hash = compute_sha256(file_path)
         cache[relative_path] = current_hash
+    
+        return new_file_content
 
 
 @show_file_progress(desc="Checking file hashes", leave=True)
