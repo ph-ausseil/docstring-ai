@@ -155,6 +155,7 @@ def process_files_and_create_prs(
     # Step 3: Compute SHA-256 hashes and filter out unchanged files
     logging.info("\nChecking file hashes...")
     files_to_process = filter_files_by_hash(python_files_sorted, repo_path, cache)
+    files_to_process = {key: value for key, value in files_to_process.items() if value is not None}
 
     logging.info(f"\n{len(files_to_process)} files to process after cache check.")
 
