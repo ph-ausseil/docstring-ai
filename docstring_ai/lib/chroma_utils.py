@@ -93,7 +93,7 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
             doc_id = os.path.relpath(file_path)
             ids.append(doc_id)
             documents.append(content)
-            metadatas.append( {"file_path": file_path} + tags)
+            metadatas.append( {"file_path": file_path} | tags)
             logging.info(f"Prepared file for embedding: {file_path}")
         except Exception as e:
             logging.error(f"Error reading file {file_path}: {e}")
