@@ -235,7 +235,7 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
 
         # Push changes to remote repository
         subprocess.run(
-            ["git", "-C", repo_path, "push", "-u", "origin", branch_name"],
+            ["git", "-C", repo_path, "push", "-u", "origin", branch_name],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
