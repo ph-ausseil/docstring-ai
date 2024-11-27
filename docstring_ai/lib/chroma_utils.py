@@ -169,10 +169,7 @@ def get_relevant_context(collection: chromadb.Collection, classes: List[str], ma
             token_count += doc_tokens
         return context
     except Exception as e: 
-        print(classes)
-        logging.error("Error guiding the prompt")
-        logging.error(traceback.format_exc())
-        raise e
+        logging.error(f"Error guiding the prompt : {e}")
 
 
 def store_class_summary(collection: chromadb.Collection, file_path: str, class_name: str, summary: str) -> None:

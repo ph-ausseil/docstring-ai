@@ -146,7 +146,7 @@ def setup_logging():
     console_handler.setFormatter(formatter)
 
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         handlers=[console_handler]
     )
 

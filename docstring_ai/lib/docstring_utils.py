@@ -98,7 +98,7 @@ def parse_classes(file_path: str) -> Dict[str, List[str]]:
         Exception: If there is an error during file reading or parsing.
     """
     logging.warning(f"Deprecated : Get imported elements from `list_imports_from_package`")
-    logging.info(f"Parsing classes from : {file_path}")
+    logging.debug(f"Parsing classes from : {file_path}")
     classes = {}
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -164,7 +164,7 @@ class DocstringExtractor:
             FileNotFoundError: If the file does not exist.
             IOError: If there is an error reading the file.
         """
-        logging.info(f"Reading file: {self.file_path}")
+        logging.debug(f"Reading file: {self.file_path}")
         try:
             with open(self.file_path, 'r', encoding='utf-8') as f:
                 self.file_content = f.read()
@@ -188,7 +188,7 @@ class DocstringExtractor:
             logging.error("File content is not loaded. Call read_file() first.")
             raise ValueError("File content is not loaded.")
 
-        logging.info("Parsing AST.")
+        logging.debug("Parsing AST.")
         try:
             self.tree = ast.parse(self.file_content, filename=self.file_path)
             logging.debug("AST parsed successfully.")
@@ -211,7 +211,7 @@ class DocstringExtractor:
             logging.error("AST is not parsed. Call parse_ast() first.")
             raise ValueError("AST is not parsed.")
 
-        logging.info("Extracting docstrings.")
+        logging.debug("Extracting docstrings.")
         # Extract module-level docstring
         module_docstring = ast.get_docstring(self.tree)
         if module_docstring:
@@ -251,7 +251,7 @@ class DocstringExtractor:
         # Start extracting from the module level
         _extract(self.tree)
 
-        logging.info(f"Total docstrings extracted: {len(self.docstrings)}")
+        logging.debug(f"Total docstrings extracted: {len(self.docstrings)}")
 
     def list_imports_from_package(self, package: str) -> List[str]:
         """
@@ -270,7 +270,7 @@ class DocstringExtractor:
             logging.error("AST is not parsed. Call parse_ast() first.")
             raise ValueError("AST is not parsed.")
 
-        logging.info(f"Starting to parse imports from '{package}' in file: {self.file_path}")
+        logging.debug(f"Starting to parse imports from '{package}' in file: {self.file_path}")
         imported_names: List[str] = []
 
         for node in ast.walk(self.tree):
@@ -291,7 +291,7 @@ class DocstringExtractor:
                         
                     logging.debug(f"Imported '{' '.join(imported_names)}' from '{module}'.")
 
-        logging.info(f"Total imports found from '{package}': {len(imported_names)}")
+        logging.debug(f"Total imports found from '{package}': {len(imported_names)}")
         return imported_names
 
     def compile(self) -> str:
@@ -301,14 +301,14 @@ class DocstringExtractor:
         Returns:
             str: The compiled docstrings in a readable text format.
         """
-        logging.info("Compiling docstrings into readable text.")
+        logging.debug("Compiling docstrings into readable text.")
         compiled_text = ""
         for element, info in self.docstrings.items():
             compiled_text += f"{element} ({info['type']}):\n{info['docstring']}\n\n"
             logging.debug(f"Compiled docstring for '{element}'.")
 
         compiled_text = compiled_text.strip()  # Remove trailing whitespace
-        logging.info("Compilation complete.")
+        logging.debug("Compilation complete.")
         return compiled_text
 
     def get_docstrings_dict(self) -> Dict[str, Dict[str, str]]:
