@@ -19,6 +19,16 @@ import re
 import uuid
 from pathlib import Path
 
+def branch_exists(repo, branch_name):
+    try:
+        repo.get_branch(branch_name)
+        return True
+    except GithubException as e:
+        if e.status == 404:
+            return False
+        else:
+            raise e
+            
 def sanitize_branch_name(name: str) -> str:
     """
     Sanitizes the branch name by replacing invalid characters with underscores.
