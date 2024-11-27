@@ -1,4 +1,21 @@
+"""
+This module provides constants and logging configurations for an AI assistant used to add docstrings to Python code.
+
+Constants:
+- MODEL: The name of the model used for processing tasks.
+- MAX_TOKENS: The maximum number of tokens allowed in a single request.
+- EMBEDDING_MODEL: The name of the OpenAI embedding model used for converting text into embedding vectors.
+- MAX_RETRIES: The maximum number of retry attempts for API requests.
+- RETRY_BACKOFF: The time to wait before retrying after a failed API request.
+- CHROMA_COLLECTION_NAME: The name of the ChromaDB collection used to store context data.
+- DATA_PATH: The path to the data directory for context storage.
+- CACHE_FILE_NAME: The name of the file used for caching purposes.
+- CONTEXT_SUMMARY_PATH: The path for storing context summaries.
+- DOCSTRING_AI_TAG: A tag for identifying generated docstrings.
+"""
+
 from pathlib import Path 
+
 # Constants
 
 MODEL = "gpt-4o-mini"  
@@ -123,6 +140,15 @@ class ColoredFormatter(logging.Formatter):
     RESET = Style.RESET_ALL
 
     def format(self, record):
+        """
+        Format the specified record as text.
+
+        Args:
+            record (logging.LogRecord): The record to format.
+
+        Returns:
+            str: The formatted log message.
+        """
         color = self.COLOR_MAP.get(record.levelno, self.RESET)
         record.levelname = f"{color}{record.levelname}{self.RESET}"
         return super().format(record)
@@ -130,15 +156,43 @@ class ColoredFormatter(logging.Formatter):
 
 EXCLUDED_LOG_MODULES = ['_client', 'openai', 'urllib3', 'http.client', 'httpx','_trace' , 'httpcore' , 'chromadb.config', 'httpcore.connection' , 'httpcore.http11']
 class ExcludeLibrariesFilter(logging.Filter):
+    """
+    Filter to exclude log records from specified modules.
+    """
     def filter(self, record):
+        """
+        Determine whether to log the given record.
+
+        Args:
+            record (logging.LogRecord): The record to filter.
+
+        Returns:
+            bool: True if the record should be logged, False otherwise.
+        """
         return not any(record.name.startswith(module) for module in EXCLUDED_LOG_MODULES)
 
 class HTTPRequestFilter(logging.Filter):
+    """
+    Filter to exclude HTTP request logs from the output.
+    """
     def filter(self, record):
-        # Exclude HTTP request logs
+        """
+        Determine whether to log the given record.
+
+        Args:
+            record (logging.LogRecord): The record to filter.
+
+        Returns:
+            bool: True if the record should be logged, False otherwise.
+        """
         return 'HTTP Request:' not in record.getMessage()
 
+
 def setup_logging():
+    """
+    Set up logging configuration for the application.
+    Automatically includes color formatting for console output and suppresses logging from specific libraries.
+    """
     formatter = ColoredFormatter(
         '%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
     )
