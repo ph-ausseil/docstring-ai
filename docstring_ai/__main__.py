@@ -222,27 +222,29 @@ def main():
         print(f"Error: The specified path '{path}' does not exist.")
         exit(1)
 
+ 
+    # GitHub integration
+    github_token = args.github_token or os.getenv("GITHUB_TOKEN")
     # Determine PR target
     pr_enabled, github_repo = determine_pr_target(path, args)
-
     if not pr_enabled:
         print("\n⚠️ WARNING: You are running the script without GitHub PR creation.")
         print("Modified files will be directly edited in place. Proceed with caution!")
         if not prompt_user_confirmation("Do you wish to continue?"):
             print("Operation aborted by the user.")
             sys.exit(0)
-
-    # Determine target branch
-    target_branch = determine_target_branch(path, args)
-    if not target_branch:
-        print("Error: Unable to determine the target branch. Please provide a target branch using --target-branch.")
-        exit(1)
-    if pr_enabled:
+    else:
         if not github_token:
             print("Error: GitHub token must be provided via --github-token or the GITHUB_TOKEN environment variable.")
             exit(1)
         if not github_repo:
             print("Error: GitHub repository must be provided via --pr or the GITHUB_REPO environment variable.")
+            exit(1)
+
+           # Determine target branch
+        target_branch = determine_target_branch(path, args)
+        if not target_branch:
+            print("Error: Unable to determine the target branch. Please provide a target branch using --target-branch.")
             exit(1)
 
         print(f"GitHub PR enabled for repository: {github_repo}")
@@ -252,8 +254,6 @@ def main():
         print(f"GitHub token: {'[HIDDEN]' if github_token else 'NOT SET'}")
         print(f"PR Depth: {pr_depth}")
 
-    # GitHub integration
-    github_token = args.github_token or os.getenv("GITHUB_TOKEN")
     pr_depth = args.pr_depth
     branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
