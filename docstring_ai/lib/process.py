@@ -50,14 +50,13 @@ from docstring_ai.lib.chroma_utils import (
 from docstring_ai.lib.docstring_utils import (
     DocstringExtractor,
 )
-from docstring_ai.lib.github_utils import create_github_pr, checkout_branch
+from docstring_ai.lib.github_utils import create_github_pr, checkout_branch, commit_and_push_changes
 from docstring_ai import (
     MAX_TOKENS, 
     CHROMA_COLLECTION_NAME, 
     CACHE_FILE_NAME, 
     DATA_PATH, 
     CONTEXT_SUMMARY_PATH,
-    commit_and_push_changes
 )
 
 
