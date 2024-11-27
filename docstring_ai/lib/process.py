@@ -277,7 +277,8 @@ def process_files_and_create_prs(
             thread_id=thread_id,
             context_summary=context_summary,
             collection=collection,
-            api_key=api_key
+            api_key=api_key,
+            repo_path=repo_path
         )
         if not description_file_ids:
             logging.warning("No descriptions were uploaded to OpenAI. Proceeding without descriptions.")
@@ -602,7 +603,7 @@ def upload_files_to_openai(file_paths: List[str]) -> List[str]:
     for file_path in file_paths:
         try:
             with open(file_path, "rb") as f:
-                response = openai.beta.files.create(
+                response = openai.files.create(
                     file=f,
                     purpose="assistants"
                 )

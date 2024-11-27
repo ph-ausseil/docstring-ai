@@ -100,11 +100,14 @@ def determine_pr_target(path: str, args) -> (bool, str):
         (bool, str): A tuple where the first element indicates whether PR creation is enabled,
                      and the second is the GitHub repository (owner/repo) if applicable.
     """
-
+    use_repo_config = args.use_repo_config
     if is_git_repo(path):
         remote_url = get_remote_url(path)
         if remote_url:
             user, repo = parse_github_url(remote_url)
+            if user and repo and use_repo_config:
+                return True, f"{user}/{repo}"
+
             if user and repo:
                 print(f"The folder {str(Path(path).absolute())} is part of the GitHub repository: {user}/{repo}")
                 proceed = input(f"Do you want to create a pull request on the repository {user}/{repo}? (yes/no): ").strip().lower()
@@ -135,6 +138,9 @@ def determine_target_branch(path: str, args) -> str:
 
     try:
         current_branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=path).strip().decode()
+        if args.use_repo_config: 
+            return current_branch
+
         print(f"The current branch in the repository is: {current_branch}")
         proceed = input(f"Do you want to use '{current_branch}' as the target branch? (yes/no): ").strip().lower()
         if proceed == "yes":
@@ -164,15 +170,16 @@ def main():
     # CLI Arguments
     parser.add_argument("--path", required=True, help="Path to the repository or folder containing Python files.")
     parser.add_argument("--api_key", help="OpenAI API key. Defaults to the OPENAI_API_KEY environment variable.")
+    parser.add_argument("--manual", action="store_true", help="Enable manual validation circuits for review.")
+    parser.add_argument("--no-cache", action="store_true", help="Execute the script without cached values.")
+    parser.add_argument("--help-flags", action="store_true", help="List and describe all available flags.")
+    parser.add_argument("--pr-depth", type=int, default=2, help="Depth level for creating PRs per folder. Default is 2.")
+    parser.add_argument("--use-repo-config", help="Use if the --path is a git repo exit, it will use git config (and overide any of the following parametter).")
     parser.add_argument("--pr", help="GitHub repository for PR creation (e.g., owner/repository).")
     parser.add_argument("--target-branch", help="Target branch of the PR.")
     parser.add_argument("--github-token", help="GitHub personal access token. Defaults to the GITHUB_TOKEN environment variable.")
     parser.add_argument("--branch-name", help="Branch name for the PR. Auto-generated if not provided.")
     parser.add_argument("--pr-name", help="Custom name for the pull request. Defaults to '-- Add docstrings for files in `path`'.")
-    parser.add_argument("--pr-depth", type=int, default=2, help="Depth level for creating PRs per folder. Default is 2.")
-    parser.add_argument("--manual", action="store_true", help="Enable manual validation circuits for review.")
-    parser.add_argument("--help-flags", action="store_true", help="List and describe all available flags.")
-    parser.add_argument("--no-cache", action="store_true", help="Execute the script without cached values.")
 
     # Parse arguments
     args = parser.parse_args()
@@ -180,15 +187,16 @@ def main():
     # If --help-flags is used, display flag descriptions and exit
     if args.help_flags:
         print("Available Flags:\n")
-        print("  --path           (Required) Path to the repository or folder containing Python files.")
-        print("  --api_key        OpenAI API key. Defaults to the OPENAI_API_KEY environment variable.")
-        print("  --pr             GitHub repository for PR creation (e.g., owner/repository).")
-        print("  --github-token   GitHub personal access token. Defaults to the GITHUB_TOKEN environment variable.")
-        print("  --branch-name    Branch name for the PR. Auto-generated if not provided.")
-        print("  --pr-name        Custom name for the pull request. Defaults to '-- Add docstrings for files in `path`'.")
-        print("  --pr-depth       Depth level for creating PRs per folder. Default is 2.")
-        print("  --manual         Enable manual validation circuits for review.")
-        print("  --no-cache       Execute the script without cached values by deleting cache files.")
+        print("  --path             (Required) Path to the repository or folder containing Python files.")
+        print("  --api_key          OpenAI API key. Defaults to the OPENAI_API_KEY environment variable.")
+        print("  --manual           Enable manual validation circuits for review.")
+        print("  --no-cache         Execute the script without cached values by deleting cache files.")
+        print("  --use-repo-config  Use if the --path is a git repo exit, it will use git config (and overide any of the following parametter).")
+        print("  --pr               GitHub repository for PR creation (e.g., owner/repository).")
+        print("  --github-token     GitHub personal access token. Defaults to the GITHUB_TOKEN environment variable.")
+        print("  --branch-name      Branch name for the PR. Auto-generated if not provided.")
+        print("  --pr-name          Custom name for the pull request. Defaults to '-- Add docstrings for files in `path`'.")
+        print("  --pr-depth         Depth level for creating PRs per folder. Default is 2.")
         return
 
     # Handle the --no-cache flag
@@ -225,6 +233,7 @@ def main():
  
     # GitHub integration
     github_token = args.github_token or os.getenv("GITHUB_TOKEN")
+    use_repo_config = args.use_repo_config
     pr_depth = args.pr_depth
     branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
