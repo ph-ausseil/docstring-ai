@@ -225,6 +225,11 @@ def main():
  
     # GitHub integration
     github_token = args.github_token or os.getenv("GITHUB_TOKEN")
+    pr_depth = args.pr_depth
+    branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
+    manual = args.manual
+
     # Determine PR target
     pr_enabled, github_repo = determine_pr_target(path, args)
     if not pr_enabled:
@@ -254,10 +259,6 @@ def main():
         print(f"GitHub token: {'[HIDDEN]' if github_token else 'NOT SET'}")
         print(f"PR Depth: {pr_depth}")
 
-    pr_depth = args.pr_depth
-    branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
-    manual = args.manual
 
 
 
