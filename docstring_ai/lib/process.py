@@ -91,10 +91,18 @@ def initialize_and_create_assistant(api_key: str):
         return None, None
 
 
-def process_file_descriptions(files_to_process: List[str], output_dir: Path, assistant_id: str, thread_id: str, context_summary: List[Dict], collection, api_key: str) -> List[str]:
+def process_file_descriptions(
+    files_to_process: List[str], 
+    output_dir: Path, 
+    assistant_id: str, 
+    thread_id: str, 
+    context_summary: List[Dict], 
+    collection, 
+    api_key: str, 
+    repo_path: str  # Add repo_path parameter
+) -> List[str]:
     """
     Generates detailed descriptions for files, embeds them into ChromaDB, uploads to OpenAI, and updates Assistant's resources.
-    Handles exceptions to prevent the script from crashing.
 
     Args:
         files_to_process (List[str]): List of file paths to generate descriptions for.
@@ -104,6 +112,7 @@ def process_file_descriptions(files_to_process: List[str], output_dir: Path, ass
         context_summary (List[Dict]): Current context summary.
         collection: ChromaDB collection.
         api_key (str): OpenAI API key.
+        repo_path (str): Repository path for computing relative paths.
 
     Returns:
         List[str]: List of successfully uploaded description file IDs.
@@ -112,52 +121,33 @@ def process_file_descriptions(files_to_process: List[str], output_dir: Path, ass
     for file in files_to_process:
         relative_path = os.path.relpath(file, repo_path)
         if not any(entry["file"] == relative_path for entry in context_summary):
-            logging.info(f"Generating detailed description for {file}...")
             try:
                 with open(file, 'r', encoding='utf-8') as f:
                     file_content = f.read()
+
                 file_description = generate_file_description(
                     assistant_id=assistant_id,
                     thread_id=thread_id, 
                     file_content=file_content
                 )
+
+                # Save description
                 description_file_path = output_dir / Path(file).with_suffix('.txt')
                 description_file_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(description_file_path, 'w', encoding='utf-8') as f:
                     f.write(file_description)
-                file_descriptions_list.append(str(description_file_path))
 
-                context_summary.append({
-                    "file": relative_path,
-                    "description": file_description
-                })
-                logging.info(f"Description generated and saved for {file}.")
+                file_descriptions_list.append(str(description_file_path))
+                context_summary.append({"file": relative_path, "description": file_description})
+
             except Exception as e:
                 logging.error(f"Failed to generate description for {file}: {e}")
-    if file_descriptions_list:
-        try:
-            embed_and_store_files(
-                collection=collection, 
-                python_files=file_descriptions_list,
-                tags={"file_type": "description"}
-            )
-            logging.info("Embedded and stored file descriptions in ChromaDB.")
-        except Exception as e:
-            logging.error(f"Failed to embed and store file descriptions: {e}")
-    
-    # Upload descriptions to OpenAI
+
+    # Embed and upload descriptions
+    embed_and_store_files(collection, file_descriptions_list, tags={"file_type": "description"})
     description_file_ids = upload_files_to_openai(file_descriptions_list)
-    if description_file_ids:
-        try:
-            update_assistant_tool_resources(
-                api_key=api_key,
-                assistant_id=assistant_id,
-                file_ids=description_file_ids
-            )
-            logging.info("Updated Assistant's tool resources with description file IDs.")
-        except Exception as e:
-            logging.error(f"Failed to update Assistant's tool resources with description file IDs: {e}")
     return description_file_ids
+
 
 
 
@@ -218,162 +208,161 @@ def process_files_and_create_prs(
     Returns:
         None
     """
-    try:
-        ###
-        ### INITIATE (Global Steps)
-        ###
-        openai.api_key = api_key
+    ###
+    ### INITIATE (Global Steps)
+    ###
+    openai.api_key = api_key
 
-        # Check if Git is present
-        git_present = check_git_repo(repo_path)
-        if not git_present:
-            logging.warning(f"Git repository not found at {repo_path}. Some operations may be skipped.")
+    # Check if Git is present
+    git_present = check_git_repo(repo_path)
+    if not git_present:
+        logging.warning(f"Git repository not found at {repo_path}. Some operations may be skipped.")
 
-        # Initialize ChromaDB
-        logging.info("\nInitializing ChromaDB...")
-        chroma_client = initialize_chroma()
-        collection = get_or_create_collection(chroma_client, CHROMA_COLLECTION_NAME)
+    # Initialize ChromaDB
+    logging.info("\nInitializing ChromaDB...")
+    chroma_client = initialize_chroma()
+    collection = get_or_create_collection(chroma_client, CHROMA_COLLECTION_NAME)
 
-        # Load cache
-        cache_path = os.path.join(repo_path, CACHE_FILE_NAME)
-        cache = load_cache(cache_path)
+    # Load cache
+    cache_path = os.path.join(repo_path, CACHE_FILE_NAME)
+    cache = load_cache(cache_path)
 
-        # Traverse repository and categorize folders based on pr_depth
-        logging.info("\nTraversing repository to categorize folders based on pr_depth...")
-        folder_dict = traverse_repo(repo_path, pr_depth)
-        logging.info(f"Found {len(folder_dict)} depth levels up to {pr_depth}.")
+    # Traverse repository and categorize folders based on pr_depth
+    logging.info("\nTraversing repository to categorize folders based on pr_depth...")
+    folder_dict = traverse_repo(repo_path, pr_depth)
+    logging.info(f"Found {len(folder_dict)} depth levels up to {pr_depth}.")
 
-        # Load Context Summary
-        context_summary_full_path = os.path.join(repo_path, CONTEXT_SUMMARY_PATH)
-        context_summary = []
-        if os.path.exists(context_summary_full_path):
+    # Load Context Summary
+    context_summary_full_path = os.path.join(repo_path, CONTEXT_SUMMARY_PATH)
+    context_summary = []
+    if os.path.exists(context_summary_full_path):
+        try:
+            with open(context_summary_full_path, 'r', encoding='utf-8') as f:
+                context_summary = json.load(f)
+            logging.info(f"Loaded context summary with {len(context_summary)} entries.")
+        except Exception as e:
+            logging.error(f"Error loading context summary: {e}")
+
+    # Initialize Assistant and create thread
+    assistant_id, thread_id = initialize_and_create_assistant(api_key)
+    if not assistant_id or not thread_id:
+        logging.error("Failed to initialize Assistant or create a thread. Exiting.")
+        return
+
+    # Ensure the './data/' directory exists
+    output_dir = Path(DATA_PATH)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    ###
+    ### Steps 9 to 11: Create Missing Context, Embed, and Upload Descriptions
+    ###
+    logging.info("\nCreating missing context for files...")
+    # Gather all files to process for descriptions
+    python_files = get_python_files(repo_path)
+    logging.info(f"Found {len(python_files)} Python files to process for descriptions.")
+
+    # Sort files by size (ascending)
+    python_files_sorted = sort_files_by_size(python_files)
+
+    # Compute SHA-256 hashes and filter out unchanged files
+    logging.info("\nChecking file hashes for descriptions...")
+    files_to_describe = filter_files_by_hash(python_files_sorted, repo_path, cache)
+    logging.info(f"{len(files_to_describe)} files need descriptions after cache check.")
+
+    if files_to_describe:
+        description_file_ids = process_file_descriptions(
+            files_to_process=files_to_describe,
+            output_dir=output_dir,
+            assistant_id=assistant_id,
+            thread_id=thread_id,
+            context_summary=context_summary,
+            collection=collection,
+            api_key=api_key
+        )
+        if not description_file_ids:
+            logging.warning("No descriptions were uploaded to OpenAI. Proceeding without descriptions.")
+    else:
+        logging.info("No new file descriptions needed.")
+
+    ###
+    ### PROCESS PER FOLDER AND CREATE PRs (Per-Folder Steps)
+    ###
+    logging.info("\nProcessing folders and creating Pull Requests...")
+    for depth, folders in folder_dict.items():
+        for folder in folders:
+            logging.info(f"\nProcessing folder '{folder}' at depth {depth}...")
+            pr_files = get_python_files(folder)
+            if not pr_files:
+                logging.info(f"No Python files found in folder '{folder}'. Skipping.")
+                continue  # Skip folders with no Python files
+
+            # Step 12: Process Each Python File for Docstrings
+            logging.info("\nProcessing Python files to add docstrings...")
+            with tqdm(total=len(pr_files), desc=f"Adding docstrings in '{folder}'", unit="file", dynamic_ncols=True) as pbar:
+                for python_file_path in pr_files:
+                    process_single_file(
+                        python_file_path=python_file_path,
+                        repo_path=repo_path,
+                        assistant_id=assistant_id,
+                        thread_id=thread_id,
+                        collection=collection,
+                        context_summary=context_summary,
+                        cache=cache,
+                        manual=manual
+                    )
+                    pbar.update(1)
+
+            # Step 13: Save Context Summary
             try:
-                with open(context_summary_full_path, 'r', encoding='utf-8') as f:
-                    context_summary = json.load(f)
-                logging.info(f"Loaded context summary with {len(context_summary)} entries.")
+                with open(context_summary_full_path, "w", encoding='utf-8') as f:
+                    json.dump(context_summary, f, indent=2)
+                logging.info(f"\nDocstring generation completed for folder '{folder}'. Context summary saved to '{context_summary_full_path}'.")
             except Exception as e:
-                logging.error(f"Error loading context summary: {e}")
+                logging.error(f"Error saving context summary for folder '{folder}': {e}")
 
-        # Initialize Assistant and create thread
-        assistant_id, thread_id = initialize_and_create_assistant(api_key)
-        if not assistant_id or not thread_id:
-            logging.error("Failed to initialize Assistant or create a thread. Exiting.")
-            return
+            # Step 14: Save Cache
+            save_cache(cache_path, cache)
 
-        # Ensure the './data/' directory exists
-        output_dir = Path(DATA_PATH)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        ###
-        ### Steps 9 to 11: Create Missing Context, Embed, and Upload Descriptions
-        ###
-        logging.info("\nCreating missing context for files...")
-        # Gather all files to process for descriptions
-        python_files = get_python_files(repo_path)
-        logging.info(f"Found {len(python_files)} Python files to process for descriptions.")
-
-        # Sort files by size (ascending)
-        python_files_sorted = sort_files_by_size(python_files)
-
-        # Compute SHA-256 hashes and filter out unchanged files
-        logging.info("\nChecking file hashes for descriptions...")
-        files_to_describe = filter_files_by_hash(python_files_sorted, repo_path, cache)
-        logging.info(f"{len(files_to_describe)} files need descriptions after cache check.")
-
-        if files_to_describe:
-            description_file_ids = process_file_descriptions(
-                files_to_process=files_to_describe,
-                output_dir=output_dir,
-                assistant_id=assistant_id,
-                thread_id=thread_id,
-                context_summary=context_summary,
-                collection=collection,
-                api_key=api_key
-            )
-            if not description_file_ids:
-                logging.warning("No descriptions were uploaded to OpenAI. Proceeding without descriptions.")
-        else:
-            logging.info("No new file descriptions needed.")
-
-        ###
-        ### PROCESS PER FOLDER AND CREATE PRs (Per-Folder Steps)
-        ###
-        logging.info("\nProcessing folders and creating Pull Requests...")
-        for depth, folders in folder_dict.items():
-            for folder in folders:
-                logging.info(f"\nProcessing folder '{folder}' at depth {depth}...")
-                pr_files = get_python_files(folder)
-                if not pr_files:
-                    logging.info(f"No Python files found in folder '{folder}'. Skipping.")
-                    continue  # Skip folders with no Python files
-
-                # Step 12: Process Each Python File for Docstrings
-                logging.info("\nProcessing Python files to add docstrings...")
-                with tqdm(total=len(pr_files), desc=f"Adding docstrings in '{folder}'", unit="file", dynamic_ncols=True) as pbar:
-                    for python_file_path in pr_files:
-                        process_single_file(
-                            python_file_path=python_file_path,
-                            repo_path=repo_path,
-                            assistant_id=assistant_id,
-                            thread_id=thread_id,
-                            collection=collection,
-                            context_summary=context_summary,
-                            cache=cache,
-                            manual=manual
-                        )
-                        pbar.update(1)
-
-                # Step 13: Save Context Summary
-                try:
-                    with open(context_summary_full_path, "w", encoding='utf-8') as f:
-                        json.dump(context_summary, f, indent=2)
-                    logging.info(f"\nDocstring generation completed for folder '{folder}'. Context summary saved to '{context_summary_full_path}'.")
-                except Exception as e:
-                    logging.error(f"Error saving context summary for folder '{folder}': {e}")
-
-                # Step 14: Save Cache
-                save_cache(cache_path, cache)
-
-                # Step 15: Create Pull Requests Based on pr_depth
-                if create_pr and git_present and github_token and github_repo:
-                    if manual:
-                        # Show summary of PR to be created and ask for confirmation
-                        print(f"\nPull Request to be created for folder: '{folder}'")
-                        if not prompt_user_confirmation(f"Do you want to proceed with creating a Pull Request for '{folder}'?"):
-                            logging.info(f"Pull Request creation for folder '{folder}' aborted by the user.")
-                            continue
-
-                    logging.info("\nCreating Pull Request for the folder...")
-                    # Generate a unique branch name for the folder
-                    folder_rel_path = os.path.relpath(folder, repo_path).replace(os.sep, "_")
-                    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-                    folder_branch_name = f"feature/docstrings-folder-{folder_rel_path}-{timestamp}"
-
-                    # Generate PR name
-                    folder_pr_name = f"Add docstrings for folder `{folder_rel_path}`"
-
-                    # Commit and push changes to the branch
-                    commit_message = f"[Docstring-AI] Add docstrings via Docstring-AI script for folder {folder_rel_path}"
-                    if not commit_and_push_changes(repo_path, folder_branch_name, commit_message):
-                        logging.error(f"Failed to commit and push changes for folder '{folder_rel_path}'. Skipping PR creation.")
+            # Step 15: Create Pull Requests Based on pr_depth
+            if create_pr and git_present and github_token and github_repo:
+                if manual:
+                    # Show summary of PR to be created and ask for confirmation
+                    print(f"\nPull Request to be created for folder: '{folder}'")
+                    if not prompt_user_confirmation(f"Do you want to proceed with creating a Pull Request for '{folder}'?"):
+                        logging.info(f"Pull Request creation for folder '{folder}' aborted by the user.")
                         continue
 
-                    # Create GitHub PR
-                    pr_created = create_github_pr(
-                        repo_path=repo_path, 
-                        github_token=github_token, 
-                        github_repo=github_repo, 
-                        branch_base_name=folder_branch_name, 
-                        pr_name=folder_pr_name,
-                        target_branch=target_branch
-                    )
+                logging.info("\nCreating Pull Request for the folder...")
+                # Generate a unique branch name for the folder
+                folder_rel_path = os.path.relpath(folder, repo_path).replace(os.sep, "_")
+                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                folder_branch_name = f"feature/docstrings-folder-{folder_rel_path}-{timestamp}"
 
-                    if pr_created:
-                        logging.info(f"Pull Request created successfully for folder '{folder_rel_path}'.")
-                    else:
-                        logging.error(f"Failed to create Pull Request for folder '{folder_rel_path}'.")
+                # Generate PR name
+                folder_pr_name = f"Add docstrings for folder `{folder_rel_path}`"
 
-        logging.info("\nAll folders processed successfully.")
+                # Commit and push changes to the branch
+                commit_message = f"[Docstring-AI] Add docstrings via Docstring-AI script for folder {folder_rel_path}"
+                if not commit_and_push_changes(repo_path, folder_branch_name, commit_message):
+                    logging.error(f"Failed to commit and push changes for folder '{folder_rel_path}'. Skipping PR creation.")
+                    continue
+
+                # Create GitHub PR
+                pr_created = create_github_pr(
+                    repo_path=repo_path, 
+                    github_token=github_token, 
+                    github_repo=github_repo, 
+                    branch_base_name=folder_branch_name, 
+                    pr_name=folder_pr_name,
+                    target_branch=target_branch
+                )
+
+                if pr_created:
+                    logging.info(f"Pull Request created successfully for folder '{folder_rel_path}'.")
+                else:
+                    logging.error(f"Failed to create Pull Request for folder '{folder_rel_path}'.")
+
+    logging.info("\nAll folders processed successfully.")
 
 def process_single_file(
     python_file_path: str,
@@ -535,18 +524,6 @@ def approve_and_save_file(
     # Check if there's any change in the file content
     if not new_file_content:
         logging.info(f"No changes made to {python_file_path}.")
-        # Update cache even if no changes to prevent reprocessing unchanged files
-        relative_path = os.path.relpath(python_file_path, repo_path)
-        try:
-            current_hash = compute_sha256(python_file_path)
-            cache[relative_path] = current_hash
-            logging.info(f"Cache updated for unchanged file: {python_file_path}")
-        except Exception as e:
-            logging.error(f"Error computing hash for {python_file_path}: {e}")
-        return False  # Indicate that no changes were made
-
-    if new_file_content == original_code:
-        logging.info(f"No changes detected for {python_file_path}.")
         return False  # Indicate that no changes were made
 
     # Ensure the header is added if not present
@@ -556,114 +533,25 @@ def approve_and_save_file(
         logging.error(f"Error ensuring docstring header for {python_file_path}: {e}")
         return False
 
-    # Handle manual approval if required
-    if manual:
-        try:
-            diff = show_diff(original_code, new_file_content)
-            print(f"\n--- Diff for {python_file_path} ---\n{diff}\n--- End of Diff ---\n")
-            if not prompt_user_confirmation(f"Do you approve changes for {python_file_path}?"):
-                logging.info(f"Changes for {python_file_path} were not approved by the user.")
-                return False  # Indicate that changes were not approved
-        except Exception as e:
-            logging.error(f"Error during manual approval for {python_file_path}: {e}")
-            return False
-
     try:
-        # Backup original file only if needed
-        if not check_git_repo(repo_path):
-            # No Git: Always create a backup
-            create_backup(python_file_path)
-            logging.info(f"File backup created for {python_file_path} (no Git).")
-        elif file_has_uncommitted_changes(repo_path, python_file_path):
-            # Git is present: Backup if the file has uncommitted changes
-            create_backup(python_file_path)
-            logging.info(f"Backup created for {python_file_path} (uncommitted changes).")
-
-        # Update the file with modified code
+        # Backup and update the file
+        create_backup(python_file_path)
         with open(python_file_path, "w", encoding="utf-8") as f:
             f.write(new_file_content)
+
         logging.info(f"Updated docstrings in {python_file_path}")
 
-        # Generate updated file description after adding docstrings
-        try:
-            updated_file_description = generate_file_description(
-                assistant_id=assistant_id,
-                thread_id=thread_id,
-                file_content=new_file_content,
-            )
-            logging.info(f"Updated description for {python_file_path}")
-        except Exception as e:
-            logging.error(f"Error generating updated description for {python_file_path}: {e}")
-            return False
-
-        # Update context_summary with the updated description
+        # Update cache
+        new_hash = compute_sha256(python_file_path)
         relative_path = os.path.relpath(python_file_path, repo_path)
-        try:
-            cached_entry = next(
-                (
-                    item
-                    for item in context_summary
-                    if str(Path(item["file"])) == str(Path(relative_path))
-                ),
-                None,
-            )
-            if cached_entry:
-                # Update existing entry
-                cached_entry["description"] = updated_file_description
-                logging.info(f"Updated cached description for {python_file_path}.")
-            else:
-                # Append new entry
-                context_summary.append(
-                    {
-                        "file": relative_path,
-                        "description": updated_file_description,
-                    }
-                )
-                logging.info(f"Added new description for {python_file_path} to context summary.")
-        except Exception as e:
-            logging.error(f"Error updating context summary for {python_file_path}: {e}")
-            return False
+        cache[relative_path] = new_hash
 
-        # Update cache with new hash
-        try:
-            new_hash = compute_sha256(python_file_path)
-            cache[relative_path] = new_hash
-            logging.info(f"Updated cache for file: {python_file_path}")
-        except Exception as e:
-            logging.error(f"Error computing new hash for {python_file_path}: {e}")
-            return False
-
-        # Process class summaries
-        try:
-            extractor = DocstringExtractor(file_path=python_file_path)
-            extractor.process()
-            modified_classes = extractor.process_imports(package="docstring_ai.lib")
-
-            for class_name in modified_classes:
-                # Extract the docstring for each class
-                class_docstring = extractor.get_class_docstring(class_name)
-                if class_docstring:
-                    summary = extractor.compile()  # Assuming compile returns the first line as summary
-                    store_class_summary(
-                        collection, relative_path, class_name, summary
-                    )
-                    logging.info(f"Stored summary for class {class_name} in {python_file_path}.")
-        except Exception as e:
-            logging.warning(f"Error refreshing internal vector for file {python_file_path}: {e}")
-
-        return True  # Indicate success
+        logging.info(f"Cache updated for {python_file_path}")
+        return True
 
     except Exception as e:
         logging.error(f"Error updating file {python_file_path}: {e}")
-        return False  # Indicate failure
-
-
-    except Exception as e:
-        logging.error(f"Unexpected error in process_files_and_create_prs: {e}")
-        # Attempt to checkout target_branch even in case of unexpected errors
-        if check_git_repo(repo_path):
-            if not checkout_branch(repo_path, target_branch):
-                logging.warning(f"Failed to checkout to target branch '{target_branch}' after an error.")
+        return False
 
 
 def filter_files_by_hash(file_paths: List[str], repo_path: str, cache: Dict[str, str]) -> List[str]:
@@ -702,32 +590,23 @@ def filter_files_by_hash(file_paths: List[str], repo_path: str, cache: Dict[str,
 
 def upload_files_to_openai(file_paths: List[str]) -> List[str]:
     """
-    Uploads multiple files to OpenAI and returns their file IDs.
-    Handles exceptions to prevent the script from crashing.
+    Uploads files to OpenAI and returns file IDs.
 
     Args:
         file_paths (List[str]): List of file paths to upload.
 
     Returns:
-        List[str]: List of successfully uploaded file IDs.
+        List[str]: List of file IDs.
     """
     file_ids = []
-    logging.info("Starting upload of files to OpenAI...")
-    with tqdm(total=len(file_paths), desc="Uploading files to OpenAI", unit="file", dynamic_ncols=True) as pbar:
-        for file_path in file_paths:
-            try:
-                with open(file_path, "rb") as f:
-                    response = openai.beta.files.create(
-                        file=f,
-                        purpose="assistants"
-                    )
-                file_ids.append(response.id)
-                logging.info(f"Successfully uploaded {file_path} with ID: {response.id}")
-            except Exception as e:
-                logging.error(f"Failed to upload {file_path} to OpenAI: {e}")
-            finally:
-                pbar.update(1)
-    logging.info(f"Completed uploading files to OpenAI. {len(file_ids)} files uploaded successfully.")
+    for file_path in file_paths:
+        try:
+            with open(file_path, "rb") as f:
+                response = openai.beta.files.create(
+                    file=f,
+                    purpose="assistants"
+                )
+            file_ids.append(response.id)
+        except Exception as e:
+            logging.error(f"Failed to upload {file_path}: {e}")
     return file_ids
-
-
