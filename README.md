@@ -125,7 +125,8 @@ poetry run . --path=/path/to/repo --pr=yourusername/yourrepo --github-token=YOUR
 |------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `--path`         | **(Required)** Path to the repository or folder containing Python files.                                                                                                |
 | `--api_key`      | OpenAI API key. Defaults to the `OPENAI_API_KEY` environment variable if not provided.                                                                                 |
-| `--pr`           | GitHub repository for PR creation in the format `owner/repository`. Overrides the `GITHUB_REPO` environment variable if provided.                                        |
+| `--pr`           | GitHub repository for PR creation in the format `owner/repository`. Overrides the `GITHUB_REPO` environment variable if provided.                                                  |
+| `--target-branch`| Repositiry branch that is the target of the created PR (Default: Sugest the current branch)                                         |
 | `--github-token` | GitHub personal access token. Defaults to the `GITHUB_TOKEN` environment variable if not provided.                                                                     |
 | `--branch-name`  | Branch name for the PR. Auto-generated if not provided.                                                                                                                |
 | `--pr-name`      | Custom name for the pull request. Defaults to `-- Add docstrings for files in 'path'.`                                                                                  |
