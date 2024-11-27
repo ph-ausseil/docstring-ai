@@ -310,7 +310,6 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
             stderr=subprocess.PIPE,
             text=True
         )
-        logging.info(f"Remote Branch '{branch_name}' Commit History:\n{remote_log.stdout}")
 
         # Log git status after push
         if not log_git_status(repo_path):
