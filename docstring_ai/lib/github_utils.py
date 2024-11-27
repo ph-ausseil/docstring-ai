@@ -28,7 +28,7 @@ def branch_exists(repo, branch_name):
             return False
         else:
             raise e
-            
+
 def sanitize_branch_name(name: str) -> str:
     """
     Sanitizes the branch name by replacing invalid characters with underscores.
@@ -53,6 +53,47 @@ def generate_unique_suffix() -> str:
         str: An 8-character unique suffix.
     """
     return uuid.uuid4().hex[:8]
+
+def has_unstaged_changes(repo_path: str) -> bool:
+    """
+    Checks if there are unstaged changes in the repository.
+    
+    Args:
+        repo_path (str): The local path to the GitHub repository.
+    
+    Returns:
+        bool: True if there are unstaged changes, False otherwise.
+    """
+    result = subprocess.run(
+        ["git", "-C", repo_path, "diff", "--quiet"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    return result.returncode != 0
+
+def get_staged_files(repo_path: str) -> List[str]:
+    """
+    Retrieves a list of files staged for commit in the given repository.
+    
+    Args:
+        repo_path (str): The local path to the GitHub repository.
+    
+    Returns:
+        List[str]: A list of staged file paths.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", repo_path, "diff", "--cached", "--name-only"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        staged_files = result.stdout.strip().split('\n')
+        return [file for file in staged_files if file]  # Filter out empty lines
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to retrieve staged files: {e.stderr.strip()}")
+        return []
 
 def create_github_pr(
     repo_path: str,
@@ -83,44 +124,42 @@ def create_github_pr(
     current_branch = None
     try:
 
-        # Step 3: Initialize GitHub API
         g = Github(github_token)
         repo = g.get_repo(github_repo)
 
-        # Step 4: Sanitize and generate unique branch name
         sanitized_branch_name = sanitize_branch_name(branch_base_name)
         unique_suffix = generate_unique_suffix()
         full_branch_name = f"{sanitized_branch_name}_{unique_suffix}"
 
         logging.info(f"Generated unique branch name: '{full_branch_name}'")
 
-        # Step 5: Create a new branch from the target branch
-        try:
-            source = repo.get_branch(target_branch)
-            ref = f"refs/heads/{full_branch_name}"
-            try:
-                repo.get_git_ref(ref)
-                logging.info(f"Branch '{full_branch_name}' already exists on remote.")
-            except GithubException as e:
-                if e.status == 404:
-                    repo.create_git_ref(ref=ref, sha=source.commit.sha)
-                    logging.info(f"Branch '{full_branch_name}' created on remote.")
-                else:
-                    logging.error(f"Failed to create branch '{full_branch_name}': {e}")
-                    return False
-        except GithubException as e:
-            logging.error(f"Failed to retrieve target branch '{target_branch}': {e}")
+        # Step 1: Check for unstaged changes
+        if not has_unstaged_changes(repo_path):
+            logging.warning("No unstaged changes detected. Skipping commit, branch creation, and PR creation.")
             return False
 
-        # Step 6: Commit and push changes
+        # Step 2: Stage changes before switching branches
+        try:
+            subprocess.run(["git", "-C", repo_path, "add", "."], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            logging.info("All unstaged changes added to staging area.")
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Failed to stage changes: {e.stderr.decode().strip()}")
+            return False
+
+        # Step 3: Create and switch to branch locally
+        if not checkout_branch(repo_path, full_branch_name):
+            logging.error(f"Failed to create or switch to branch '{full_branch_name}'.")
+            return False
+
+        # Step 5: Retrieve staged files for PR body
+        changed_files = get_staged_files(repo_path)
+        if not changed_files:
+            logging.warning("No staged files detected. Skipping PR creation.")
+            return False
+
+        # Step 4: Commit and push changes
         if not commit_and_push_changes(repo_path, full_branch_name, "[Docstring-AI] ✨ Add docstrings via Docstring-AI script"):
             logging.error("Failed to commit and push changes.")
-            return False
-
-        # Step 7: Gather changed files compared to the target branch
-        changed_files = get_changed_files(repo_path, full_branch_name, target_branch)
-        if not changed_files:
-            logging.warning("No Python files have changed after commit. Pull Request will not be created.")
             return False
 
         # Step 8: Create Pull Request with list of changed files in the body
@@ -191,15 +230,13 @@ def create_pull_request_body(changed_files: List[str]) -> str:
         pr_body += f"- `{file}`\n"
     return pr_body
 
-
 def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: str) -> bool:
     """
     Commits and pushes changes to the specified branch in the given repository.
     
     This function manages Git operations to switch to the specified branch,
-    add all changes, make a commit with the provided message, fetch and merge
-    remote changes, and then push the changes to the remote repository.
-
+    add all changes, commit with the provided message, and push changes.
+    
     Args:
         repo_path (str): The local path to the GitHub repository.
         branch_name (str): The name of the branch to which changes will be committed.
@@ -227,20 +264,15 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
         )
         logging.info("Added all changes to staging.")
 
-        # Log git status
-        if not log_git_status(repo_path):
-            return False
-
         # Check if there are changes to commit
         result = subprocess.run(
             ["git", "-C", repo_path, "diff", "--cached", "--exit-code"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-
         if result.returncode == 0:
             logging.info("No changes to commit.")
-            return True  # No changes to commit, but not an error
+            return True
 
         # Commit changes
         subprocess.run(
@@ -251,34 +283,6 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
         )
         logging.info(f"Committed changes with message: '{commit_message}'")
 
-        # Display the latest commit for verification
-        commit_log = subprocess.run(
-            ["git", "-C", repo_path, "log", "-1"],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        logging.info(f"Latest Commit:\n{commit_log.stdout}")
-
-        # Fetch remote changes for the branch
-        subprocess.run(
-            ["git", "-C", repo_path, "fetch", "origin", branch_name],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        logging.info(f"Fetched latest changes from remote branch '{branch_name}'.")
-
-        # Merge remote changes into local branch
-        subprocess.run(
-            ["git", "-C", repo_path, "merge", f"origin/{branch_name}"],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        logging.info(f"Merged remote branch 'origin/{branch_name}' into '{branch_name}'.")
-
         # Push changes to remote repository
         subprocess.run(
             ["git", "-C", repo_path, "push", "-u", "origin", branch_name],
@@ -287,72 +291,12 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
             stderr=subprocess.PIPE
         )
         logging.info(f"Changes pushed to branch '{branch_name}' on remote.")
-
-        # Display the remote commit history for verification
-        remote_log = subprocess.run(
-            ["git", "-C", repo_path, "log", "origin/" + branch_name, "--oneline"],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-
-        # Log git status after push
-        if not log_git_status(repo_path):
-            return False
-
         return True
 
     except subprocess.CalledProcessError as e:
         logging.error(f"Git command failed: {e.stderr.decode().strip()}")
         return False
 
-def get_changed_files(repo_path: str, branch_name: str, base_branch: str) -> List[str]:
-    """
-    Retrieves a list of changed Python files in the given repository between the base branch and the feature branch.
-    
-    Args:
-        repo_path (str): The local path to the GitHub repository.
-        branch_name (str): The name of the feature branch.
-        base_branch (str): The name of the base branch to compare against.
-    
-    Returns:
-        List[str]: A list of changed Python files.
-    """
-    try:
-        # Fetch the latest changes for both base and feature branches
-        subprocess.run(
-            ["git", "-C", repo_path, "fetch", "origin", base_branch],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        subprocess.run(
-            ["git", "-C", repo_path, "fetch", "origin", branch_name],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        logging.info(f"Fetched latest changes from base branch '{base_branch}' and feature branch '{branch_name}'.")
-
-        # Get the diff between the remote base branch and remote feature branch
-        result = subprocess.run(
-            ["git", "-C", repo_path, "diff", "--name-only", f"origin/{base_branch}..origin/{branch_name}"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=True
-        )
-        changed_files = result.stdout.strip().split('\n')
-        changed_files = [file for file in changed_files if file.endswith('.py') and file]
-        if changed_files:
-            logging.info(f"Changed Python files: {changed_files}")
-        else:
-            logging.info("No Python files have changed.")
-        return changed_files
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Git command failed while retrieving changed files: {e.stderr.strip()}")
-        return []
 
 
 def log_git_status(repo_path: str) -> bool:
