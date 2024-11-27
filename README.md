@@ -208,19 +208,11 @@ When the `--manual` flag is enabled, Docstring-AI introduces an interactive revi
 ### 3. **GitHub Action Package**
    - **Description**: Package Docstring-AI as a **GitHub Action** to automate docstring generation within your CI/CD pipeline. This integration ensures that every commit or pull request is automatically documented, maintaining consistent and up-to-date documentation across the repository.
 
-### 4. **Implementation of Structured Output or OpenAI Toolcall** : 
-   - **Description**: For structured output
-
-### 5. **Granularity**
+### 4. **Granularity**
    - **Description**: Leveraging Structured Outputs , choose which docstring to generate : Modules, Classes, Functions & Constants levels
 
-### 6. **Console improvements** : 
+### 5. **Console improvements** : 
    - **Description**: Use of the tdmq wrapper & enhance the logging class
-
-### 6. **Integrate with target GitHub repo** : 
-   - **Description**: If the target repo is a GitHub repo
-      - Detect the repo to use
-      - Raise an alert if different repo is passed via .env or args
 
 ---
 
