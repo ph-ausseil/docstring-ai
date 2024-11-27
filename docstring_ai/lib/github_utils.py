@@ -144,30 +144,6 @@ def create_github_pr(
         return False
 
 
-def checkout_branch(repo_path: str, branch_name: str) -> bool:
-    """
-    Checks out the specified branch in the repository.
-    
-    Args:
-        repo_path (str): The local path to the GitHub repository.
-        branch_name (str): The name of the branch to check out.
-    
-    Returns:
-        bool: True if checkout was successful, False otherwise.
-    """
-    try:
-        subprocess.run(
-            ["git", "-C", repo_path, "checkout", branch_name],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        logging.info(f"Checked out to branch '{branch_name}'.")
-        return True
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to checkout branch '{branch_name}': {e.stderr.decode().strip()}")
-        return False
-
 def get_python_files(repo_path: str) -> List[str]:
     """
     Retrieves a list of all Python files in the given repository.
@@ -367,27 +343,6 @@ def get_changed_files(repo_path: str, branch_name: str, base_branch: str) -> Lis
     except subprocess.CalledProcessError as e:
         logging.error(f"Git command failed while retrieving changed files: {e.stderr.strip()}")
         return []
-
-def get_python_files(repo_path: str) -> List[str]:
-    """
-    Retrieves a list of all Python files in the given repository.
-    
-    Args:
-        repo_path (str): The local path to the GitHub repository.
-    
-    Returns:
-        List[str]: A list of Python file paths.
-    """
-    python_files = []
-    for root, dirs, files in os.walk(repo_path):
-        # Skip hidden directories
-        dirs[:] = [d for d in dirs if not d.startswith('.')]
-        for file in files:
-            if file.endswith('.py'):
-                full_path = os.path.join(root, file)
-                python_files.append(os.path.relpath(full_path, repo_path))
-    logging.info(f"Total Python files found: {len(python_files)}")
-    return python_files
 
 
 def log_git_status(repo_path: str) -> bool:
