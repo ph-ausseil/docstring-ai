@@ -67,7 +67,8 @@ def process_files_and_create_prs(
     branch_name: str, 
     pr_name: str, 
     pr_depth: int, 
-    manual: bool
+    manual: bool,
+    target_branch : str
 ) -> None:
     """
     Processes Python files in the specified repository, adds docstrings using OpenAI's Assistant,
@@ -324,7 +325,8 @@ def process_files_and_create_prs(
                     github_token=github_token, 
                     github_repo=github_repo, 
                     branch_base_name=folder_branch_name, 
-                    pr_name=folder_pr_name
+                    pr_name=folder_pr_name,
+                    target_branch=target_branch
                 )
 
 

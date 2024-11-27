@@ -1,5 +1,4 @@
 import os
-import openai
 import argparse
 import time
 import json
@@ -19,7 +18,6 @@ import difflib
 import re
 import uuid
 from pathlib import Path
-
 
 def sanitize_branch_name(name: str) -> str:
     """
@@ -46,7 +44,14 @@ def generate_unique_suffix() -> str:
     """
     return uuid.uuid4().hex[:8]
 
-def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch_base_name: str, pr_name: str) -> bool:
+def create_github_pr(
+    repo_path: str,
+    github_token: str,
+    github_repo: str,
+    branch_base_name: str,
+    pr_name: str,
+    target_branch: str  # Target branch of the PR; After a PR is sent, this branch should be checked out
+) -> bool:
     """
     Creates a GitHub pull request for the specified repository, branch, and pull request name.
     
@@ -60,10 +65,12 @@ def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch
         github_repo (str): The GitHub repository identifier in the format 'owner/repo'.
         branch_base_name (str): The base name for the new branch to create for the pull request.
         pr_name (str): The title of the pull request.
+        target_branch (str): The target branch for the PR.
     
     Returns:
         bool: True if the PR was created successfully, False otherwise.
     """
+    current_branch = None
     try:
 
         # Step 3: Initialize GitHub API
@@ -77,10 +84,9 @@ def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch
 
         logging.info(f"Generated unique branch name: '{full_branch_name}'")
 
-        # Step 5: Create a new branch from the default branch
-        default_branch = repo.default_branch
+        # Step 5: Create a new branch from the target branch
         try:
-            source = repo.get_branch(default_branch)
+            source = repo.get_branch(target_branch)
             ref = f"refs/heads/{full_branch_name}"
             try:
                 repo.get_git_ref(ref)
@@ -93,17 +99,16 @@ def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch
                     logging.error(f"Failed to create branch '{full_branch_name}': {e}")
                     return False
         except GithubException as e:
-            logging.error(f"Failed to retrieve default branch '{default_branch}': {e}")
+            logging.error(f"Failed to retrieve target branch '{target_branch}': {e}")
             return False
 
         # Step 6: Commit and push changes
-        commit_message = "[Docstring-AI] ✨ Add docstrings via Docstring-AI script"
-        if not commit_and_push_changes(repo_path, full_branch_name, commit_message):
+        if not commit_and_push_changes(repo_path, full_branch_name, "[Docstring-AI] ✨ Add docstrings via Docstring-AI script"):
             logging.error("Failed to commit and push changes.")
             return False
 
-        # Step 7: Gather changed files compared to the base branch
-        changed_files = get_changed_files(repo_path, full_branch_name, default_branch)
+        # Step 7: Gather changed files compared to the target branch
+        changed_files = get_changed_files(repo_path, full_branch_name, target_branch)
         if not changed_files:
             logging.warning("No Python files have changed after commit. Pull Request will not be created.")
             return False
@@ -115,19 +120,74 @@ def create_github_pr(repo_path: str, github_token: str, github_repo: str, branch
                 title="[Docstring-AI] " + pr_name,
                 body=pr_body,
                 head=full_branch_name,
-                base=default_branch
+                base=target_branch
             )
             logging.info(f"Pull Request created: {pr.html_url}")
-            return True
         except GithubException as e:
             logging.error(f"GitHub API error while creating PR: {e.data.get('message', e)}")
             return False
 
+        # Step 9: Checkout the target branch regardless of PR creation success
+        if not checkout_branch(repo_path, target_branch):
+            logging.warning(f"Failed to checkout to target branch '{target_branch}'.")
+            # Not returning False here since PR creation was successful
+        else:
+            logging.info(f"Successfully checked out to target branch '{target_branch}'.")
+
+        return True
+
     except Exception as e:
         logging.error(f"Unexpected error in create_github_pr: {e}")
+        # Attempt to checkout target_branch even in case of unexpected errors
+        if not checkout_branch(repo_path, target_branch):
+            logging.warning(f"Failed to checkout to target branch '{target_branch}' after an error.")
         return False
 
 
+def checkout_branch(repo_path: str, branch_name: str) -> bool:
+    """
+    Checks out the specified branch in the repository.
+    
+    Args:
+        repo_path (str): The local path to the GitHub repository.
+        branch_name (str): The name of the branch to check out.
+    
+    Returns:
+        bool: True if checkout was successful, False otherwise.
+    """
+    try:
+        subprocess.run(
+            ["git", "-C", repo_path, "checkout", branch_name],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        logging.info(f"Checked out to branch '{branch_name}'.")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to checkout branch '{branch_name}': {e.stderr.decode().strip()}")
+        return False
+
+def get_python_files(repo_path: str) -> List[str]:
+    """
+    Retrieves a list of all Python files in the given repository.
+    
+    Args:
+        repo_path (str): The local path to the GitHub repository.
+    
+    Returns:
+        List[str]: A list of Python file paths.
+    """
+    python_files = []
+    for root, dirs, files in os.walk(repo_path):
+        # Skip hidden directories
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for file in files:
+            if file.endswith('.py'):
+                full_path = os.path.join(root, file)
+                python_files.append(os.path.relpath(full_path, repo_path))
+    logging.info(f"Total Python files found: {len(python_files)}")
+    return python_files
 
 
 def create_pull_request_body(changed_files: List[str]) -> str:
@@ -353,5 +413,29 @@ def log_git_status(repo_path: str) -> bool:
         return True
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to retrieve git status: {e.stderr.strip()}")
+        return False
+
+def checkout_branch(repo_path: str, branch_name: str) -> bool:
+    """
+    Checks out the specified branch in the repository.
+    
+    Args:
+        repo_path (str): The local path to the GitHub repository.
+        branch_name (str): The name of the branch to check out.
+    
+    Returns:
+        bool: True if checkout was successful, False otherwise.
+    """
+    try:
+        subprocess.run(
+            ["git", "-C", repo_path, "checkout", branch_name],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        logging.info(f"Checked out to branch '{branch_name}'.")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to checkout branch '{branch_name}': {e.stderr.decode().strip()}")
         return False
 

@@ -88,6 +88,65 @@ def parse_github_url(remote_url):
         return match.groups()
     return None, None
 
+def determine_pr_target(path: str, args) -> (bool, str):
+    """
+    Determine whether to enable PR creation and the target GitHub repository.
+
+    Args:
+        path (str): Path to the repository or folder.
+        args (Namespace): Parsed CLI arguments.
+
+    Returns:
+        (bool, str): A tuple where the first element indicates whether PR creation is enabled,
+                     and the second is the GitHub repository (owner/repo) if applicable.
+    """
+
+    if is_git_repo(path):
+        remote_url = get_remote_url(path)
+        if remote_url:
+            user, repo = parse_github_url(remote_url)
+            if user and repo:
+                print(f"The folder {str(Path(path).absolute())} is part of the GitHub repository: {user}/{repo}")
+                proceed = input(f"Do you want to create a pull request on the repository {user}/{repo}? (yes/no): ").strip().lower()
+                if proceed == "yes":
+                    return True, f"{user}/{repo}"
+
+    if args.pr:
+        return True, args.pr
+
+    if os.getenv('GITHUB_REPO'):
+        proceed = input(f"Do you want to use the folder {os.getenv('GITHUB_REPO')} as GitHub repository? (yes/no): ").strip().lower()
+        if proceed == "yes":
+            return True, os.getenv("GITHUB_REPO")
+
+    return False, None
+
+def determine_target_branch(path: str, args) -> str:
+    """
+    Determine the target branch for the PR.
+
+    Args:
+        path (str): Path to the repository or folder.
+        args (Namespace): Parsed CLI arguments.
+
+    Returns:
+        str: The name of the target branch.
+    """
+
+    try:
+        current_branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=path).strip().decode()
+        print(f"The current branch in the repository is: {current_branch}")
+        proceed = input(f"Do you want to use '{current_branch}' as the target branch? (yes/no): ").strip().lower()
+        if proceed == "yes":
+            return current_branch
+    except subprocess.CalledProcessError:
+        if args.target_branch:
+            return args.target_branch
+
+        if os.getenv('GITHUB_TARGET_BRANCH'):
+            return os.getenv('GITHUB_TARGET_BRANCH')
+
+    return None
 
 def main():
     """
@@ -97,9 +156,6 @@ def main():
     process of adding docstrings to Python files. It handles user input, 
     validates arguments, and orchestrates the docstring generation and 
     GitHub integration process.
-
-    Raises:
-        SystemExit: If there are errors in argument parsing or invalid input.
     """
     parser = argparse.ArgumentParser(
         description="Automate adding docstrings to Python files and integrate with GitHub for PR creation."
@@ -109,6 +165,7 @@ def main():
     parser.add_argument("--path", required=True, help="Path to the repository or folder containing Python files.")
     parser.add_argument("--api_key", help="OpenAI API key. Defaults to the OPENAI_API_KEY environment variable.")
     parser.add_argument("--pr", help="GitHub repository for PR creation (e.g., owner/repository).")
+    parser.add_argument("--target-branch", help="Target branch of the PR.")
     parser.add_argument("--github-token", help="GitHub personal access token. Defaults to the GITHUB_TOKEN environment variable.")
     parser.add_argument("--branch-name", help="Branch name for the PR. Auto-generated if not provided.")
     parser.add_argument("--pr-name", help="Custom name for the pull request. Defaults to '-- Add docstrings for files in `path`'.")
@@ -165,31 +222,8 @@ def main():
         print(f"Error: The specified path '{path}' does not exist.")
         exit(1)
 
-    pr_enabled = args.pr
-    github_repo = args.pr
-    if is_git_repo(path):
-        remote_url = get_remote_url(path)
-        if remote_url:
-            user, repo = parse_github_url(remote_url)
-            if  user and repo : 
-                print(f"The folder {str(Path(path).absolute())} is part of the GitHub repository: {user}/{repo}")
-                proceed = input(f"Do you want to create a pull request on the repository  {user}/{repo} ? (yes/no): ").strip().lower()
-                if proceed == "yes" : 
-                    pr_enabled = True
-                    github_repo = f"{user}/{repo}"
-    
-    if not pr_enabled and os.getenv('GITHUB_REPO') : 
-        proceed = input(f"Do you want to use the folder {os.getenv('GITHUB_REPO')} as GitHub repository ? (yes/no): ").strip().lower()
-        if proceed == "yes" : 
-            github_repo = os.getenv("GITHUB_REPO")
-            pr_enabled = True
-
-    # GitHub integration
-    github_token = args.github_token or os.getenv("GITHUB_TOKEN")
-    pr_depth = args.pr_depth
-    branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
-    manual = args.manual
+    # Determine PR target
+    pr_enabled, github_repo = determine_pr_target(path, args)
 
     if not pr_enabled:
         print("\n⚠️ WARNING: You are running the script without GitHub PR creation.")
@@ -198,7 +232,12 @@ def main():
             print("Operation aborted by the user.")
             sys.exit(0)
 
-    if pr_enabled and github_repo:
+    # Determine target branch
+    target_branch = determine_target_branch(path, args)
+    if not target_branch:
+        print("Error: Unable to determine the target branch. Please provide a target branch using --target-branch.")
+        exit(1)
+    if pr_enabled:
         if not github_token:
             print("Error: GitHub token must be provided via --github-token or the GITHUB_TOKEN environment variable.")
             exit(1)
@@ -207,10 +246,20 @@ def main():
             exit(1)
 
         print(f"GitHub PR enabled for repository: {github_repo}")
+        print(f"Target branch: {target_branch}")
         print(f"Using branch: {branch_name}")
         print(f"PR Name: {pr_name}")
         print(f"GitHub token: {'[HIDDEN]' if github_token else 'NOT SET'}")
         print(f"PR Depth: {pr_depth}")
+
+    # GitHub integration
+    github_token = args.github_token or os.getenv("GITHUB_TOKEN")
+    pr_depth = args.pr_depth
+    branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
+    manual = args.manual
+
+
 
     # Manual validation
     if manual:
@@ -226,8 +275,10 @@ def main():
         branch_name=branch_name, 
         pr_name=pr_name, 
         pr_depth=pr_depth, 
-        manual=manual
+        manual=manual,
+        target_branch=target_branch,
     )
+
 
 if __name__ == "__main__":
     main()
