@@ -1,16 +1,17 @@
-""""
+"""
 This module processes Python files to add docstrings using OpenAI's Assistant,
 embeds the files in ChromaDB, and integrates with GitHub for pull request creation.
 
 Functions:
 - process_files_and_create_prs: Processes Python files, adds docstrings, and creates pull requests.
 """
+
 import json
 import os
 import logging
 from pathlib import Path
 from typing import List, Dict
-from functools import partial, wraps
+from functools import partial
 from datetime import datetime
 
 import openai
@@ -49,7 +50,7 @@ from docstring_ai.lib.chroma_utils import (
 from docstring_ai.lib.docstring_utils import (
     DocstringExtractor,
 )
-from docstring_ai.lib.github_utils import create_github_pr
+from docstring_ai.lib.github_utils import create_github_pr, checkout_branch
 from docstring_ai import (
     MAX_TOKENS, 
     CHROMA_COLLECTION_NAME, 
@@ -57,6 +58,108 @@ from docstring_ai import (
     DATA_PATH, 
     CONTEXT_SUMMARY_PATH
 )
+
+
+
+def initialize_and_create_assistant(api_key: str):
+    """
+    Initializes the OpenAI Assistant and creates a new thread.
+    Handles exceptions during initialization and thread creation.
+
+    Args:
+        api_key (str): OpenAI API key.
+
+    Returns:
+        Tuple[str, str]: Assistant ID and Thread ID.
+    """
+    try:
+        assistant_id = initialize_assistant(api_key)
+        if not assistant_id:
+            logging.error("Failed to initialize OpenAI Assistant.")
+            return None, None
+        logging.info(f"Assistant initialized with ID: {assistant_id}")
+
+        thread_id = create_thread(api_key=api_key, assistant_id=assistant_id)
+        if not thread_id:
+            logging.error("Failed to create a new thread for the Assistant.")
+            return assistant_id, None
+        logging.info(f"Thread created with ID: {thread_id}")
+
+        return assistant_id, thread_id
+    except Exception as e:
+        logging.error(f"An error occurred during Assistant initialization: {e}")
+        return None, None
+
+
+def process_file_descriptions(files_to_process: List[str], output_dir: Path, assistant_id: str, thread_id: str, context_summary: List[Dict], collection, api_key: str) -> List[str]:
+    """
+    Generates detailed descriptions for files, embeds them into ChromaDB, uploads to OpenAI, and updates Assistant's resources.
+    Handles exceptions to prevent the script from crashing.
+
+    Args:
+        files_to_process (List[str]): List of file paths to generate descriptions for.
+        output_dir (Path): Directory to store description files.
+        assistant_id (str): OpenAI Assistant ID.
+        thread_id (str): OpenAI Thread ID.
+        context_summary (List[Dict]): Current context summary.
+        collection: ChromaDB collection.
+        api_key (str): OpenAI API key.
+
+    Returns:
+        List[str]: List of successfully uploaded description file IDs.
+    """
+    file_descriptions_list = []
+    for file in files_to_process:
+        relative_path = os.path.relpath(file, repo_path)
+        if not any(entry["file"] == relative_path for entry in context_summary):
+            logging.info(f"Generating detailed description for {file}...")
+            try:
+                with open(file, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
+                file_description = generate_file_description(
+                    assistant_id=assistant_id,
+                    thread_id=thread_id, 
+                    file_content=file_content
+                )
+                description_file_path = output_dir / Path(file).with_suffix('.txt')
+                description_file_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(description_file_path, 'w', encoding='utf-8') as f:
+                    f.write(file_description)
+                file_descriptions_list.append(str(description_file_path))
+
+                context_summary.append({
+                    "file": relative_path,
+                    "description": file_description
+                })
+                logging.info(f"Description generated and saved for {file}.")
+            except Exception as e:
+                logging.error(f"Failed to generate description for {file}: {e}")
+    if file_descriptions_list:
+        try:
+            embed_and_store_files(
+                collection=collection, 
+                python_files=file_descriptions_list,
+                tags={"file_type": "description"}
+            )
+            logging.info("Embedded and stored file descriptions in ChromaDB.")
+        except Exception as e:
+            logging.error(f"Failed to embed and store file descriptions: {e}")
+    
+    # Upload descriptions to OpenAI
+    description_file_ids = upload_files_to_openai(file_descriptions_list)
+    if description_file_ids:
+        try:
+            update_assistant_tool_resources(
+                api_key=api_key,
+                assistant_id=assistant_id,
+                file_ids=description_file_ids
+            )
+            logging.info("Updated Assistant's tool resources with description file IDs.")
+        except Exception as e:
+            logging.error(f"Failed to update Assistant's tool resources with description file IDs: {e}")
+    return description_file_ids
+
+
 
 def process_files_and_create_prs(
     repo_path: str, 
@@ -111,13 +214,9 @@ def process_files_and_create_prs(
         pr_depth (int): The maximum depth to categorize folders for PR creation.
         manual (bool): Flag indicating if manual approval is required for changes.
         target_branch (str): The target branch for the PRs.
-    
-    Returns:
-        None: This function performs its operations and does not return a value.
 
-    Raises:
-        Exception: Various exceptions may occur during file processing, API calls,
-                    or Git operations, which are logged accordingly.
+    Returns:
+        None
     """
     try:
         ###
@@ -155,68 +254,46 @@ def process_files_and_create_prs(
             except Exception as e:
                 logging.error(f"Error loading context summary: {e}")
 
-        # Initialize Assistant
-        logging.info("\nInitializing Assistant...")
-        assistant_id = initialize_assistant(api_key)
-        if not assistant_id:
-            logging.error("Assistant initialization failed. Exiting.")
-            return
-
-        # Create a Thread
-        logging.info("\nCreating a new Thread...")
-        thread_id = create_thread(
-            api_key=api_key, 
-            assistant_id=assistant_id
-        )
-        if not thread_id:
-            logging.error("Thread creation failed. Exiting.")
+        # Initialize Assistant and create thread
+        assistant_id, thread_id = initialize_and_create_assistant(api_key)
+        if not assistant_id or not thread_id:
+            logging.error("Failed to initialize Assistant or create a thread. Exiting.")
             return
 
         # Ensure the './data/' directory exists
-        output_dir = DATA_PATH
+        output_dir = Path(DATA_PATH)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-    
-        # Step 9: Create Missing Context 
-        file_descriptions_list = []
-        for file in files_to_process: 
-            if not any(entry["file"] == file for entry in context_summary): 
-                logging.info(f"Generating detailed description for {file}...")
-                with open(file, 'r', encoding='utf-8') as f:
-                    file_description = generate_file_description(
-                        assistant_id=assistant_id,
-                        thread_id=thread_id, 
-                        file_content=f.read()
-                    )
+        ###
+        ### Steps 9 to 11: Create Missing Context, Embed, and Upload Descriptions
+        ###
+        logging.info("\nCreating missing context for files...")
+        # Gather all files to process for descriptions
+        python_files = get_python_files(repo_path)
+        logging.info(f"Found {len(python_files)} Python files to process for descriptions.")
 
-                file_path = Path(output_dir) / Path(file).with_suffix('.txt')
-                file_path.parent.mkdir(parents=True, exist_ok=True) 
-                # Create a file with descriptions
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(file_description)
-                file_descriptions_list.append(file_path)
+        # Sort files by size (ascending)
+        python_files_sorted = sort_files_by_size(python_files)
 
-                context_summary.append({
-                    "file": file,
-                    "description": file_description
-                })
-                # Append to context_summary for future use
+        # Compute SHA-256 hashes and filter out unchanged files
+        logging.info("\nChecking file hashes for descriptions...")
+        files_to_describe = filter_files_by_hash(python_files_sorted, repo_path, cache)
+        logging.info(f"{len(files_to_describe)} files need descriptions after cache check.")
 
-        # Step 10: Embed and store context descriptions in ChromaDB
-        logging.info("\nEmbedding and storing Python file descriptions in ChromaDB...")
-        embed_and_store_files(
-            collection=collection, 
-            python_files=file_descriptions_list,
-            tags={"file_type": "description"})
-
-        # Step 11: Upload context descriptions to OpenAI and update Assistant's tool resources
-        logging.info("\nUploading file descriptions to OpenAI...")
-        description_file_ids = upload_files_to_openai(file_paths=[str(fp) for fp in file_descriptions_list])
-
-        update_assistant_tool_resources(
-            api_key=api_key,
-            assistant_id=assistant_id,
-            file_ids= python_file_ids + description_file_ids)
+        if files_to_describe:
+            description_file_ids = process_file_descriptions(
+                files_to_process=files_to_describe,
+                output_dir=output_dir,
+                assistant_id=assistant_id,
+                thread_id=thread_id,
+                context_summary=context_summary,
+                collection=collection,
+                api_key=api_key
+            )
+            if not description_file_ids:
+                logging.warning("No descriptions were uploaded to OpenAI. Proceeding without descriptions.")
+        else:
+            logging.info("No new file descriptions needed.")
 
         ###
         ### PROCESS PER FOLDER AND CREATE PRs (Per-Folder Steps)
@@ -273,7 +350,7 @@ def process_files_and_create_prs(
                     folder_branch_name = f"feature/docstrings-folder-{folder_rel_path}-{timestamp}"
 
                     # Generate PR name
-                    folder_pr_name = f"Add docstrings for folder {folder_rel_path}"
+                    folder_pr_name = f"Add docstrings for folder `{folder_rel_path}`"
 
                     # Commit and push changes to the branch
                     commit_message = f"[Docstring-AI] Add docstrings via Docstring-AI script for folder {folder_rel_path}"
@@ -348,13 +425,13 @@ def process_single_file(
        - Extract and store summaries for any modified classes in the file.
 
     Args:
-        file_path (str): The path to the Python file.
-        repo_path (str): The repository path.
-        assistant_id (str): The OpenAI assistant ID.
-        thread_id (str): The thread ID for OpenAI interactions.
-        collection: The ChromaDB collection.
-        context_summary (list): The context summary list.
-        cache (dict): The cache dictionary.
+        python_file_path (str): Path to the Python file.
+        repo_path (str): Repository path.
+        assistant_id (str): OpenAI Assistant ID.
+        thread_id (str): OpenAI Thread ID.
+        collection: ChromaDB collection.
+        context_summary (list): Current context summary.
+        cache (dict): Cache dictionary.
         manual (bool): Flag indicating if manual approval is required.
 
     Returns:
@@ -374,7 +451,7 @@ def process_single_file(
         file_description = cached_entry.get("description", "")
         logging.info(f"Using cached description for {python_file_path}.")
     else: 
-        logging.error("No file description: Cached or Created in process_files_and_create_prs ")
+        logging.error("No file description found in context_summary. Please ensure descriptions are generated before processing files.")
         file_description = ""  # Initialize to empty string or handle accordingly
 
     extractor = DocstringExtractor(file_path=python_file_path)
@@ -407,13 +484,17 @@ def process_single_file(
     )
 
     # Generate and apply docstrings
-    result = create_file_with_docstring(
-        assistant_id=assistant_id,
-        thread_id=thread_id,
-        code=original_code,
-        context=few_shot_prompt,
-        functions={"write_file_with_new_docstring": patched_approve_and_save_file}
-    )
+    try:
+        result = create_file_with_docstring(
+            assistant_id=assistant_id,
+            thread_id=thread_id,
+            code=original_code,
+            context=few_shot_prompt,
+            functions={"write_file_with_new_docstring": patched_approve_and_save_file}
+        )
+    except Exception as e:
+        logging.error(f"Failed to generate docstrings for {python_file_path}: {e}")
+        return
 
     if result:
         logging.info(f"Docstrings successfully added and saved for {python_file_path}.")
@@ -439,14 +520,14 @@ def approve_and_save_file(
     Args:
         new_file_content (str): The code after adding docstrings.
         original_code (str): The original code before modification.
-        file_path (str): The path to the Python file.
-        repo_path (str): The repository path.
+        python_file_path (str): Path to the Python file.
+        repo_path (str): Repository path.
         manual (bool): Flag indicating if manual approval is required.
-        context_summary (list): The context summary list.
-        cache (dict): The cache dictionary.
-        collection: The ChromaDB collection.
-        assistant_id (str): The OpenAI assistant ID.
-        thread_id (str): The thread ID for OpenAI interactions.
+        context_summary (list): Current context summary.
+        cache (dict): Cache dictionary.
+        collection: ChromaDB collection.
+        assistant_id (str): OpenAI Assistant ID.
+        thread_id (str): OpenAI Thread ID.
 
     Returns:
         bool: True if the file was successfully updated and saved, False otherwise.
@@ -492,7 +573,7 @@ def approve_and_save_file(
         if not check_git_repo(repo_path):
             # No Git: Always create a backup
             create_backup(python_file_path)
-            logging.info(f"File Backup created for {python_file_path} (no Git).")
+            logging.info(f"File backup created for {python_file_path} (no Git).")
         elif file_has_uncommitted_changes(repo_path, python_file_path):
             # Git is present: Backup if the file has uncommitted changes
             create_backup(python_file_path)
@@ -577,22 +658,30 @@ def approve_and_save_file(
         return False  # Indicate failure
 
 
+    except Exception as e:
+        logging.error(f"Unexpected error in process_files_and_create_prs: {e}")
+        # Attempt to checkout target_branch even in case of unexpected errors
+        if check_git_repo(repo_path):
+            if not checkout_branch(repo_path, target_branch):
+                logging.warning(f"Failed to checkout to target branch '{target_branch}' after an error.")
+
+
 def filter_files_by_hash(file_paths: List[str], repo_path: str, cache: Dict[str, str]) -> List[str]:
     """
-    Filters a single file based on SHA-256 hash and cache.
+    Filters files based on SHA-256 hash and cache.
 
     Args:
-        file_path (str): Path to the file.
+        file_paths (List[str]): List of file paths to filter.
         repo_path (str): Path to the repository.
-        cache (dict): Dictionary storing file hashes.
+        cache (Dict[str, str]): Cache dictionary storing file hashes.
 
     Returns:
-        str: File path if it needs processing, otherwise None.
+        List[str]: List of file paths that need processing.
     """
     changed_files = []
-    logging.info("Début de la vérification des hashs de fichiers...")
+    logging.info("Starting file hash verification...")
     
-    with tqdm(total=len(file_paths), desc="Vérification des hashs de fichiers", unit="fichier") as pbar:
+    with tqdm(total=len(file_paths), desc="Verifying file hashes", unit="file") as pbar:
         for file_path in file_paths:
             try:
                 current_hash = compute_sha256(file_path)
@@ -602,39 +691,43 @@ def filter_files_by_hash(file_paths: List[str], repo_path: str, cache: Dict[str,
                 if current_hash != cached_hash:
                     changed_files.append(file_path)
             except Exception as e:
-                logging.error(f"Erreur lors de la vérification de {file_path} : {e}")
+                logging.error(f"Error verifying hash for {file_path}: {e}")
             finally:
                 pbar.update(1)
     
-    logging.info(f"Vérification terminée. {len(changed_files)} fichiers nécessitent un traitement.")
+    logging.info(f"Hash verification completed. {len(changed_files)} files require processing.")
     return changed_files
+
 
 
 def upload_files_to_openai(file_paths: List[str]) -> List[str]:
     """
-    Uploads a single file to OpenAI and returns the file ID.
+    Uploads multiple files to OpenAI and returns their file IDs.
+    Handles exceptions to prevent the script from crashing.
 
     Args:
-        file_path (str): Path to the file.
+        file_paths (List[str]): List of file paths to upload.
 
     Returns:
-        str: File ID from OpenAI or None on failure.
+        List[str]: List of successfully uploaded file IDs.
     """
     file_ids = []
-    logging.info("Début du téléchargement des fichiers sur OpenAI...")
-    with tqdm(total=len(file_paths), desc="Téléchargement des fichiers sur OpenAI", unit="fichier") as pbar:
+    logging.info("Starting upload of files to OpenAI...")
+    with tqdm(total=len(file_paths), desc="Uploading files to OpenAI", unit="file", dynamic_ncols=True) as pbar:
         for file_path in file_paths:
             try:
                 with open(file_path, "rb") as f:
-                    response = openai.files.create(
+                    response = openai.beta.files.create(
                         file=f,
                         purpose="assistants"
                     )
                 file_ids.append(response.id)
-                logging.info(f"Fichier téléchargé : {file_path} avec l'ID : {response.id}")
+                logging.info(f"Successfully uploaded {file_path} with ID: {response.id}")
             except Exception as e:
-                logging.error(f"Erreur lors du téléchargement de {file_path} : {e}")
+                logging.error(f"Failed to upload {file_path} to OpenAI: {e}")
             finally:
                 pbar.update(1)
-    logging.info(f"Téléchargement terminé. {len(file_ids)} fichiers téléchargés avec succès.")
-    return file_ids"
+    logging.info(f"Completed uploading files to OpenAI. {len(file_ids)} files uploaded successfully.")
+    return file_ids
+
+
