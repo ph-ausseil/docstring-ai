@@ -1,6 +1,6 @@
 # Docstring-AI 🤖✨
 
-![License](https://img.shields.io/github/license/yourusername/docstring-ai)
+![License](https://img.shields.io/github/license/ph-ausseil/docstring-ai)
 ![Python Version](https://img.shields.io/badge/python-3.7%2B-blue.svg)
 
 > **Automate and Enhance Your Python Documentation with AI-Powered Precision**
@@ -9,15 +9,18 @@
 
 ## 📜 What is Docstring-AI?
 
-Docstring-AI is an intelligent tool designed to **automate the generation of comprehensive docstrings** for your Python codebase. Leveraging the power of OpenAI's GPT-4o-mini and ChromaDB, Docstring-AI ensures that your functions, classes, and modules are well-documented, enhancing code readability, maintainability, and overall quality.
+Docstring-AI is an advanced tool that **automates the generation of high-quality Python docstrings** for your codebase. Built with OpenAI's GPT-4o-mini and ChromaDB, it transforms your documentation process, improving code clarity, maintainability, and collaboration.
 
 ### 🌟 Key Features
 
-- **Automated Docstring Generation**
-- **Intelligent Context Management**: With Vector search for similarity adding context (ChromaDB).
-- **Efficient Caching Mechanism**: Catching mechanism for cost efficiency.
-- **Knowledge Accumulation**: Algorith that start with small file, build up knowledge to give more context to file being processed over time.
-- **Manual Validation with Diff Preview**: Option to manualy review each change (Back up system in place anyway)
+- **Automated Docstring Generation**: Leverages AI to generate comprehensive and context-aware docstrings.
+- **Automatic Detection of Git Repository**: Detects if a folder is a Git repository and integrates seamlessly.
+- **Integration with ChromaDB**: Uses vector search for similarity-based context enrichment.
+- **Efficient Caching**: Reduces API calls by implementing a SHA-256-based caching mechanism.
+- **Incremental Knowledge Building**: Processes files incrementally, building context to improve docstring quality over time.
+- **GitHub Integration**: Automatically creates pull requests with documentation updates.
+- **Manual Validation with Diff Preview**: Enables optional manual review to ensure changes align with your requirements.
+
 
 ---
 
@@ -87,54 +90,204 @@ poetry install
 
 ## 🏃‍♂️ Running Docstring-AI
 
-### Basic Usage
+### 🏃‍♂️ Basic Usage
 
-To run Docstring-AI and add docstrings to your Python repository:
+Run Docstring-AI to automatically generate docstrings for your Python repository:
 
-```bash
+!bash
 poetry run . --path=/path/to/repo
-```
 
-### With GitHub Pull Request Creation
+> [!TIP]
+> Use the `--use-repo-config` flag for seamless Git integration. It automatically detects the repository configuration.
 
-To enable automatic creation of GitHub pull requests for your changes:
+!bash
+poetry run . --path=/path/to/repo --use-repo-config
 
-```bash
+---
+
+### 📦 With GitHub Pull Request Creation
+
+Enable GitHub integration to create pull requests for your changes:
+
+!bash
 poetry run . --path=/path/to/repo --pr=yourusername/yourrepo --github-token=YOUR_GITHUB_TOKEN
-```
 
-### Enabling Manual Validation
+---
 
-To enable manual review and validation of changes before they are applied or submitted:
+### 🛠️ Enabling Manual Validation
 
-```bash
+Enable manual review of changes to ensure they align with your requirements:
+
+!bash
 poetry run . --path=/path/to/repo --manual
-```
 
-Combine flags as needed:
+---
 
-```bash
+### 🛡️ Combining Flags
+
+Combine multiple flags for greater flexibility, such as GitHub integration and manual validation:
+
+!bash
 poetry run . --path=/path/to/repo --pr=yourusername/yourrepo --github-token=YOUR_GITHUB_TOKEN --manual
-```
 
 ---
 
 ## 📝 Understanding Flags
 
-| Flag             | Description                                                                                                                                                           |
-|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--path`         | **(Required)** Path to the repository or folder containing Python files.                                                                                                |
-| `--api_key`      | OpenAI API key. Defaults to the `OPENAI_API_KEY` environment variable if not provided.                                                                                 |
-| `--pr`           | GitHub repository for PR creation in the format `owner/repository`. Overrides the `GITHUB_REPO` environment variable if provided.                                                  |
-| `--target-branch`| Repositiry branch that is the target of the created PR (Default: Sugest the current branch)                                         |
-| `--github-token` | GitHub personal access token. Defaults to the `GITHUB_TOKEN` environment variable if not provided.                                                                     |
-| `--branch-name`  | Branch name for the PR. Auto-generated if not provided.                                                                                                                |
-| `--pr-name`      | Custom name for the pull request. Defaults to `-- Add docstrings for files in 'path'.`                                                                                  |
-| `--pr-depth`     | Depth level for creating PRs per folder. Defaults to `2`.                                                                                                              |
-| `--manual`       | Enable manual validation with diff preview before committing changes or creating PRs.                                                                                   |
-| `--help-flags`   | List and describe all available flags.                                                                                                                                |
+### General Flags
+
+| Flag             | Description                                                                                                          |
+|------------------|----------------------------------------------------------------------------------------------------------------------|
+| `--path`         | **(Required)** Path to the repository or folder containing Python files.                                            |
+| `--api_key`      | OpenAI API key. Defaults to the `OPENAI_API_KEY` environment variable if not provided.                              |
+| `--manual`       | Enable manual validation with diff preview before committing changes or creating PRs.                               |
+| `--help-flags`   | List and describe all available flags.                                                                               |
 
 ---
+
+### GitHub Integration Flags
+
+| Flag             | Description                                                                                                          |
+|------------------|----------------------------------------------------------------------------------------------------------------------|
+| `--pr`           | GitHub repository for PR creation in the format `owner/repository`. Overrides the `GITHUB_REPO` environment variable if provided. |
+| `--target-branch`| Repository branch that is the target of the created PR (Default: Suggest the current branch).                        |
+| `--github-token` | GitHub personal access token. Defaults to the `GITHUB_TOKEN` environment variable if not provided.                  |
+| `--branch-name`  | Branch name for the PR. Auto-generated if not provided.                                                             |
+| `--pr-name`      | Custom name for the pull request. Defaults to `-- Add docstrings for files in 'path'.`                              |
+| `--pr-depth`     | Depth level for creating PRs per folder. Defaults to `2`.                                                           |
+
+---
+
+### Advanced Flags
+
+| Flag             | Description                                                                                                          |
+|------------------|----------------------------------------------------------------------------------------------------------------------|
+| `--use-repo-config` | Use the repository’s Git configuration for GitHub integration. Overrides other GitHub-related parameters.         |
+| `--no-cache`     | Execute the script without cached values by deleting cache files.                                                   |
+
+
+---
+
+## 🔍 Detailed Explanation of Git Flags
+
+The Git-related flags control how Docstring-AI integrates with GitHub and your repository’s configuration. Understanding their precedence and behavior ensures optimal usage for pull request creation.
+
+### How It Works:
+
+1. **`--use-repo-config` (Highest Priority)**:  
+   If this flag is used, the tool will detect and prioritize the repository’s Git configuration. This overrides other GitHub-related flags (`--pr`, `--github-token`, etc.) and environment variables.
+   - Example: If `--use-repo-config` is specified, the detected repository URL and branch will be used regardless of other provided flags.
+
+2. **Explicit Flags (`--pr`, `--github-token`, etc.)**:  
+   If `--use-repo-config` is not provided, the tool defaults to explicitly specified flags. These flags override values from the `.env` file or environment variables.
+   - Example: Specifying `--pr=myuser/myrepo` and `--github-token=TOKEN` will use these values instead of those in `.env`.
+
+3. **Environment Variables (`GITHUB_REPO`, `GITHUB_TOKEN`, etc.)**:  
+   If neither `--use-repo-config` nor explicit flags are provided, the tool falls back to environment variables set in the `.env` file.
+
+4. **Fallback Behavior**:  
+   If no configuration (flags or environment variables) is available, GitHub pull request creation is skipped. Files will be directly modified in place.
+
+---
+
+### Priority and Behavior Overview
+
+| Configuration Method       | Priority     | Description                                                                                      |
+|----------------------------|--------------|--------------------------------------------------------------------------------------------------|
+| `--use-repo-config`        | **Highest**  | Detects repository and branch automatically, overriding all other settings.                     |
+| Explicit Flags (`--pr`, etc.) | High       | Manually specifies repository and GitHub token, overriding environment variables.               |
+| Environment Variables      | Medium       | Reads `GITHUB_REPO` and `GITHUB_TOKEN` from `.env` or system environment.                       |
+| Fallback                   | Lowest      | Skips GitHub integration entirely, modifying files locally.                                     |
+
+---
+
+## 🔍 Priority & Overwrite Relationships of Git Flags
+
+Docstring-AI uses a structured hierarchy to determine which Git configuration to use for repository and branch management. The behavior is designed to provide flexibility while leveraging existing configurations effectively.
+
+---
+
+### GitHub Repository (`--pr`)
+
+> [!NOTE]
+> By default, the application tries to detect the local repository and suggest. User confirmation will be requested.
+
+
+> [!TIP]
+> `--use-repo-config` skips the confirmations process.
+
+1. **`--use-repo-config` (Highest Priority)**:  
+   - Automatically detects the repository from the local Git configuration and uses it.  
+   - Overrides all other configurations, including `--pr` and `GITHUB_REPO`.  
+
+
+2. **Local Repository Detection**:  
+   - If `--use-repo-config` is not enabled, the tool attempts to detect if the provided path is part of a local Git repository.  
+   - The detected repository is suggested for confirmation before proceeding.  
+
+3. **`--pr` Flag**:  
+   - Manually specify the repository using the `--pr` flag.  
+   - Overrides the `GITHUB_REPO` environment variable if provided.
+
+4. **Environment Variable (`GITHUB_REPO`)**:  
+   - Used as a fallback if no other configuration is specified.
+
+
+---
+
+### GitHub Token (`--github-token`)
+1. **Command-Line Flag**:  
+   - Highest priority when provided via the `--github-token` flag.  
+   - Overrides the `GITHUB_TOKEN` environment variable.  
+
+2. **Environment Variable (`GITHUB_TOKEN`)**:  
+   - Used as a fallback if no explicit token is provided.
+
+> [!WARNING]
+> Ensure a GitHub token is provided via `--github-token` or `GITHUB_TOKEN` when using GitHub integration to avoid authentication issues.
+
+---
+
+### Target Branch (`--target-branch`)
+1. **Default Behavior**:  
+   - Defaults to the current branch detected from the local Git repository.  
+
+2. **Overrides**:  
+   - Can be explicitly set using the `--target-branch` flag or via the `GITHUB_TARGET_BRANCH` environment variable.
+
+> [!TIP]
+> Default branch detection ensures that pull requests target the branch you're actively working on, reducing manual configuration.
+
+---
+
+### Branch Name (`--branch-name`)
+1. **Default Behavior**:  
+   - Automatically generated if not specified.  
+     Example: `feature/docstring-updates-YYYYMMDDHHMMSS`.  
+
+2. **Overrides**:  
+   - Can be manually specified using the `--branch-name` flag to ensure consistency or adhere to naming conventions.
+
+---
+
+### Summary Table
+
+| Configuration     | Priority (Highest to Lowest)                                                | Default Behavior                          |
+|-------------------|----------------------------------------------------------------------------|-------------------------------------------|
+| Repository (`--pr`) | 1. `--use-repo-config` → 2. Detect Local Config → 3. `--pr` → 4. `GITHUB_REPO` | Detects local repository and suggests it. |
+| Token (`--github-token`) | 1. `--github-token` → 2. `GITHUB_TOKEN`                               | None. Must be explicitly provided.        |
+| Target Branch (`--target-branch`) | 1. `--target-branch` → 2. `GITHUB_TARGET_BRANCH`              | Defaults to the current branch.           |
+| Branch Name (`--branch-name`) | 1. `--branch-name`                                              | Auto-generated.                           |
+
+---
+
+### Example Scenario
+
+If you run the following command:
+```bash
+poetry run . --path=/path/to/repo --pr=myuser/myrepo
+```
+
 
 ## 🔍 Detailed Explanation of `--pr-depth`
 

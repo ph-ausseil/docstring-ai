@@ -56,7 +56,8 @@ from docstring_ai import (
     CHROMA_COLLECTION_NAME, 
     CACHE_FILE_NAME, 
     DATA_PATH, 
-    CONTEXT_SUMMARY_PATH
+    CONTEXT_SUMMARY_PATH,
+    commit_and_push_changes
 )
 
 
@@ -289,7 +290,7 @@ def process_files_and_create_prs(
     ### PROCESS PER FOLDER AND CREATE PRs (Per-Folder Steps)
     ###
     logging.info("\nProcessing folders and creating Pull Requests...")
-    for depth, folders in folder_dict.items():
+    for depth, folders in dict(reversed(folder_dict)).items():
         for folder in folders:
             logging.info(f"\nProcessing folder '{folder}' at depth {depth}...")
             pr_files = get_python_files(folder)
