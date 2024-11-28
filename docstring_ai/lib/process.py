@@ -296,6 +296,8 @@ def process_files_and_create_prs(
             if not pr_files:
                 logging.info(f"No Python files found in folder '{folder}'. Skipping.")
                 continue  # Skip folders with no Python files
+            else: 
+                logging.info(f"Processing : {' '.join(pr_files)}")
 
             # Step 12: Process Each Python File for Docstrings
             logging.info("\nProcessing Python files to add docstrings...")
