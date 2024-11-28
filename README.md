@@ -1,8 +1,3 @@
-
-
-> [!IMPORTANT]
-> **Safe to use (create PR & Backup) but will add docstring to a few files and crashes. It is in development not production ready**
-
 # Docstring-AI 🤖✨
 
 ![License](https://img.shields.io/github/license/ph-ausseil/docstring-ai)
@@ -19,7 +14,7 @@ Docstring-AI is an advanced tool that **automates the generation of high-quality
 ### 🌟 Key Features
 
 - **Automated Docstring Generation**: Leverages AI to generate comprehensive and context-aware docstrings.
-- **Automatic Detection of Git Repository**: Detects if a folder is a Git repository create PR (Example : [#4](https://github.com/ph-ausseil/docstring-ai/pull/4))
+- **Automatic Detection of Git Repository**: Detects if a folder is a Git repository create PR (Example : [#8]([https://github.com/ph-ausseil/docstring-ai/pull/4](https://github.com/ph-ausseil/docstring-ai/pull/8)))
 - **Manual Validation with Diff Preview**: using `--manual` argument 
 - **Optimized**: Cache (Reduce API calls), Building Context Over Time (**Still Ongoing**), Prioritize small files
 
