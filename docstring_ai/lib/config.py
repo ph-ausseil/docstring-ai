@@ -218,7 +218,7 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-EXCLUDED_LOG_MODULES = ['_client', 'openai', 'urllib3', 'http.client', 'httpx','_trace' , 'httpcore' , 'chromadb.config', 'httpcore.connection']
+EXCLUDED_LOG_MODULES = ['_client', 'openai', 'urllib3', 'http.client', 'httpx','_trace' , 'httpcore' , 'chromadb.config', 'httpcore.connection' , 'httpcore.http11']
 
 class ExcludeLibrariesFilter(logging.Filter):
     """

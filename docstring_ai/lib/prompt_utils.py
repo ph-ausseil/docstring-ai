@@ -305,7 +305,7 @@ def create_file_with_docstring(
             assistant_id=assistant_id,
             thread_id=thread_id,
             prompt=final_prompt,
-            tool_choice={"type": "function", "function": {"name": "write_file_with_new_docstring"}},
+            tool_choice={"type": "function", "function": {"name": "write_file_with_new_docstring"},
             tools=[
                 {"type": "function",
                     "function": {
@@ -467,9 +467,9 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
 
     if hasattr(thread_messages[-1],'role') : 
         logging.debug(f"##### Success : ")
-        logging.debug(f"role:{{thread_messages[-1].role}}")
-        logging.debug(f"create_at:{{thread_messages[-1].created_at}}")
-        logging.debug(f"status:{{thread_messages[-1].status}}\n")
+        logging.debug(f"role:{thread_messages[-1].role}")
+        logging.debug(f"create_at:{thread_messages[-1].created_at}")
+        logging.debug(f"status:{thread_messages[-1].status}\n")
     else :
         logging.error(f"##### Failure : ")
         logging.error(thread_messages)

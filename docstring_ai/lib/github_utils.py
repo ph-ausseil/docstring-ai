@@ -221,7 +221,7 @@ def create_pull_request_body(changed_files: List[str]) -> str:
     """
     pr_body = "Automated docstring additions.\n\n**Files Changed:**\n"
     for file in changed_files:
-        pr_body += f"- `{{file}}`\n"
+        pr_body += f"- `{file}`\n"
     return pr_body
 
 
@@ -311,7 +311,7 @@ def log_git_status(repo_path: str) -> bool:
             stderr=subprocess.PIPE,
             text=True
         )
-        logging.debug(f"Git Status:\n{{status.stdout}}")
+        logging.debug(f"Git Status:\n{status.stdout}")
         return True
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to retrieve git status: {e.stderr.strip()}")

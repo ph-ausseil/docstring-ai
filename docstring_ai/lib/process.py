@@ -490,11 +490,12 @@ def approve_and_save_file(
 
     # Ensure the header is added if not present
     try:
-        new_file_content = ensure_docstring_header(new_file_content)
+        new_file_content = ensure_docstring_header(new_file_content) 
     except Exception as e:
         logging.error(f"Error ensuring docstring header for {python_file_path}: {e}")
         return False
 
+    new_file_content = new_file_content + '\n' if not new_file_content.endswith('\n') else new_file_content
     try:
         # Backup and update the file
         create_backup(python_file_path)
