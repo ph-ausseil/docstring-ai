@@ -168,15 +168,15 @@ def create_github_pr(
             logging.error(f"Failed to create or switch to branch '{full_branch_name}'.")
             return False
 
-        # Step 4: Commit and push changes
-        if not commit_and_push_changes(repo_path, full_branch_name, "[Docstring-AI] ✨ Add docstrings via Docstring-AI script"):
-            logging.error("Failed to commit and push changes.")
-            return False
-
-        # Step 5: Retrieve staged files for PR body
+        # Step 4: Retrieve staged files for PR body
         changed_files = get_staged_files(repo_path)
         if not changed_files:
             logging.warning("No staged files detected. Skipping PR creation.")
+            return False
+
+        # Step 5: Commit and push changes
+        if not commit_and_push_changes(repo_path, full_branch_name, "[Docstring-AI] ✨ Add docstrings via Docstring-AI script"):
+            logging.error("Failed to commit and push changes.")
             return False
 
         # Step 6: Create Pull Request with list of changed files in the body
@@ -244,7 +244,7 @@ def create_pull_request_body(changed_files: List[str]) -> str:
     """
     pr_body = "Automated docstring additions.\n\n**Files Changed:**\n"
     for file in changed_files:
-        pr_body += f"- `{{file}}`\n"
+        pr_body += f"- `{file}`\n"
     return pr_body
 
 
