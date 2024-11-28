@@ -49,7 +49,7 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
     existing_collections = client.list_collections()
     for collection in existing_collections:
         if collection.name == collection_name:
-            logging.info(f"ChromaDB Collection '{collection_name}' found.")
+            logging.debug(f"ChromaDB Collection '{collection_name}' found.")
             return client.get_collection(
                 name=collection_name,
                 embedding_function=embedding_functions.OpenAIEmbeddingFunction(
@@ -98,7 +98,7 @@ def embed_and_store_files(
             ids.append(doc_id)
             documents.append(content)
             metadatas.append( {"file_path": file_path} | tags)
-            logging.info(f"Prepared file for embedding: {file_path}")
+            logging.debug(f"Prepared file for embedding: {file_path}")
         except Exception as e:
             logging.error(f"Error reading file {file_path}: {e}")
 
@@ -122,7 +122,7 @@ def embed_and_store_files(
             ids=ids,
             metadatas=metadatas
         )
-        logging.info(f"Embedded and stored {len(ids)} files in ChromaDB.")
+        logging.debug(f"Embedded and stored {len(ids)} files in ChromaDB.")
     except Exception as e:
         logging.error(f"Error adding documents to ChromaDB: {e}")
         logging.error(f"ids = {ids}")
@@ -163,7 +163,7 @@ def get_relevant_context(collection: chromadb.Collection, classes: List[str], ma
         for doc in results['documents'][0]:
             doc_tokens = len(encoder.encode(doc))
             if token_count + doc_tokens > max_tokens:
-                logging.info("Reached maximum token limit for context.")
+                logging.debug("Reached maximum token limit for context.")
                 return context
             context += doc + "\n\n"
             token_count += doc_tokens
@@ -199,7 +199,7 @@ def store_class_summary(collection: chromadb.Collection, file_path: str, class_n
             ids=[doc_id],
             metadatas=[{"file_path": file_path, "class_name": class_name}]
         )
-        logging.info(f"Stored summary for class '{class_name}' in ChromaDB.")
+        logging.debug(f"Stored summary for class '{class_name}' in ChromaDB.")
     except Exception as e:
         logging.error(f"Error storing class summary for '{class_name}': {e}")
         logging.error(traceback.format_exc())

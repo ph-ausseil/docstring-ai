@@ -71,7 +71,7 @@ def initialize_assistant(api_key: str, assistant_name: str = "DocstringAssistant
             tools=ASSISTANTS_DEFAULT_TOOLS,
             instructions=instructions
         )
-        logging.info(f"Assistant '{assistant_name}' created with ID: {assistant.id}")
+        logging.debug(f"Assistant '{assistant_name}' created with ID: {assistant.id}")
         return assistant.id
     except Exception as e:
         logging.error(f"Error initializing Assistant: {e}")
@@ -130,7 +130,7 @@ def create_thread(api_key: str, assistant_id: str, initial_messages: List[dict] 
             "messages": initial_messages if initial_messages else []
         }
         thread = openai.beta.threads.create(**payload)
-        logging.info(f"Thread created with ID: {thread.id}")
+        logging.debug(f"Thread created with ID: {thread.id}")
         return thread.id
     except Exception as e:
         logging.error(f"Error creating Thread: {e}")
@@ -450,7 +450,7 @@ def poll_run_completion(
             logging.error(f"Maximum retries reached for run {run_id}. Aborting.")
             return False
         
-        logging.info(f"Retrying run {run_id} (attempt {retries}/{MAX_RETRIES})...")
+        logging.debug(f"Retrying run {run_id} (attempt {retries}/{MAX_RETRIES})...")
         time.sleep(RETRY_BACKOFF * retries)  # Exponential backoff
 
     return False

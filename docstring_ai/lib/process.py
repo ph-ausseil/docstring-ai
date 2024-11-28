@@ -270,16 +270,17 @@ def process_files_and_create_prs(
     ### PROCESS PER FOLDER AND CREATE PRs (Per-Folder Steps)
     ###
     logging.info("\nProcessing folders and creating Pull Requests...")
-    for depth, folders in reversed(folder_dict.items()):
+    reversed_folder_dict_items = reversed(folder_dict.items())
+    for depth, folders in reversed_folder_dict_items:
         for folder in folders:
             python_files_to_process = []
-            logging.debug(f"\nProcessing folder '{folder}' at depth {depth}...")
+            logging.info(f"\nProcessing folder '{folder}'...")
             while python_files_sorted: 
                 if (python_files_sorted[0].startswith(folder)):
                     python_files_to_process.append(python_files_sorted.pop(0))
             
             if not python_files_to_process:
-                logging.debug(f"No Python files found in folder '{folder}'. Skipping.")
+                logging.info(f"No Python files found in folder '{folder}'. Skipping.")
                 continue  # Skip folders with no Python files
 
             # Step 12: Process Each Python File for Docstrings

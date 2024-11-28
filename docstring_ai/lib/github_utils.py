@@ -147,7 +147,7 @@ def create_github_pr(
         unique_suffix = generate_unique_suffix()
         full_branch_name = f"{sanitized_branch_name}_{unique_suffix}"
 
-        logging.info(f"Generated unique branch name: '{full_branch_name}'")
+        logging.debug(f"Generated unique branch name: '{full_branch_name}'")
 
         # Step 1: Check for unstaged changes
         if not has_unstaged_changes(repo_path):
@@ -157,7 +157,7 @@ def create_github_pr(
         # Step 2: Stage changes before switching branches
         try:
             subprocess.run(["git", "-C", repo_path, "add", "."], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            logging.info("All unstaged changes added to staging area.")
+            logging.debug("All unstaged changes added to staging area.")
         except subprocess.CalledProcessError as e:
             logging.error(f"Failed to stage changes: {e.stderr.decode().strip()}")
             return False
@@ -187,7 +187,7 @@ def create_github_pr(
                 head=full_branch_name,
                 base=target_branch
             )
-            logging.info(f"Pull Request created: {pr.html_url}")
+            logging.debug(f"Pull Request created: {pr.html_url}")
         except GithubException as e:
             logging.error(f"GitHub API error while creating PR: {e.data.get('message', e)}")
             return False
@@ -197,7 +197,7 @@ def create_github_pr(
             logging.warning(f"Failed to checkout to target branch '{target_branch}'.")
             # Not returning False here since PR creation was successful
         else:
-            logging.info(f"Successfully checked out to target branch '{target_branch}'.")
+            logging.debug(f"Successfully checked out to target branch '{target_branch}'.")
 
         return True
 
@@ -248,7 +248,7 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        logging.info(f"Checked out to branch '{branch_name}' locally.")
+        logging.debug(f"Checked out to branch '{branch_name}' locally.")
 
         # Add all changes
         subprocess.run(
@@ -257,7 +257,7 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        logging.info("Added all changes to staging.")
+        logging.debug("Added all changes to staging.")
 
         # Check if there are changes to commit
         result = subprocess.run(
@@ -266,7 +266,7 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
             stderr=subprocess.PIPE
         )
         if result.returncode == 0:
-            logging.info("No changes to commit.")
+            logging.debug("No changes to commit.")
             return True
 
         # Commit changes
@@ -276,7 +276,7 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        logging.info(f"Committed changes with message: '{commit_message}'")
+        logging.debug(f"Committed changes with message: '{commit_message}'")
 
         # Push changes to remote repository
         subprocess.run(
@@ -285,7 +285,7 @@ def commit_and_push_changes(repo_path: str, branch_name: str, commit_message: st
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        logging.info(f"Changes pushed to branch '{branch_name}' on remote.")
+        logging.debug(f"Changes pushed to branch '{branch_name}' on remote.")
         return True
 
     except subprocess.CalledProcessError as e:
@@ -311,7 +311,7 @@ def log_git_status(repo_path: str) -> bool:
             stderr=subprocess.PIPE,
             text=True
         )
-        logging.info(f"Git Status:\n{status.stdout}")
+        logging.debug(f"Git Status:\n{status.stdout}")
         return True
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to retrieve git status: {e.stderr.strip()}")
@@ -336,7 +336,7 @@ def checkout_branch(repo_path: str, branch_name: str) -> bool:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        logging.info(f"Checked out to branch '{branch_name}'.")
+        logging.debug(f"Checked out to branch '{branch_name}'.")
         return True
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to checkout branch '{branch_name}': {e.stderr.decode().strip()}")
