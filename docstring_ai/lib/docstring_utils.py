@@ -16,7 +16,7 @@ import openai
 import time
 import ast
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
 from docstring_ai import RETRY_BACKOFF
 
 
