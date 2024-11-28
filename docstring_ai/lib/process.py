@@ -270,8 +270,7 @@ def process_files_and_create_prs(
     ### PROCESS PER FOLDER AND CREATE PRs (Per-Folder Steps)
     ###
     logging.info("\nProcessing folders and creating Pull Requests...")
-    reversed_folder_dict_items = reversed(folder_dict.items())
-    for depth, folders in reversed_folder_dict_items:
+    for depth, folders in reversed(folder_dict.items()):
         for folder in folders:
             python_files_to_process = []
             logging.info(f"\nProcessing folder '{folder}'...")
