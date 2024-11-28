@@ -278,7 +278,7 @@ def process_files_and_create_prs(
             i = 0
             length = len(files_to_describe)
             while i < length: 
-                if (files_to_describe[0].startswith(str(Path(folder)))):
+                if (files_to_describe[0].startswith(str(Path(folder))) or depth == 0):
                     python_files_to_process.append(files_to_describe.pop(0))
                 
                 i += 1
