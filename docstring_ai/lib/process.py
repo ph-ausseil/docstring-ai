@@ -276,10 +276,10 @@ def process_files_and_create_prs(
             logging.info(f"\nProcessing folder '{folder}'...")
 
             i = 0
-            length = len(python_files_sorted)
+            length = len(files_to_describe)
             while i < length: 
-                if (python_files_sorted[0].startswith(str(Path(folder)))):
-                    python_files_to_process.append(python_files_sorted.pop(0))
+                if (files_to_describe[0].startswith(str(Path(folder)))):
+                    python_files_to_process.append(files_to_describe.pop(0))
                 
                 i += 1
             
