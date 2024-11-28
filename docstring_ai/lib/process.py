@@ -334,28 +334,23 @@ def process_files_and_create_prs(
                         logging.info(f"Pull Request creation for folder '{folder}' aborted by the user.")
                         continue
 
-                logging.info("\nCreating Pull Request for the folder...")
+                folder_rel_path = os.path.relpath(folder, repo_path)
+                logging.info(f"Creating Pull Request for the folder {folder_rel_path}")
                 # Generate a unique branch name for the folder
-                folder_rel_path = os.path.relpath(folder, repo_path).replace(os.sep, "_")
-                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-                folder_branch_name = f"feature/docstrings-folder-{folder_rel_path}-{timestamp}"
 
-                # Generate PR name
-                folder_pr_name = f"Add docstrings for folder `{folder_rel_path}`"
-
-                # Commit and push changes to the branch
-                commit_message = f"[Docstring-AI] Add docstrings via Docstring-AI script for folder {folder_rel_path}"
-                if not commit_and_push_changes(repo_path, folder_branch_name, commit_message):
-                    logging.error(f"Failed to commit and push changes for folder '{folder_rel_path}'. Skipping PR creation.")
-                    continue
+                # # Commit and push changes to the branch
+                # commit_message = f"[Docstring-AI] Add docstrings via Docstring-AI script for folder {folder_rel_path}"
+                # if not commit_and_push_changes(repo_path, folder_branch_name, commit_message):
+                #     logging.error(f"Failed to commit and push changes for folder '{folder_rel_path}'. Skipping PR creation.")
+                #     continue
 
                 # Create GitHub PR
                 pr_created = create_github_pr(
                     repo_path=repo_path, 
                     github_token=github_token, 
                     github_repo=github_repo, 
-                    branch_base_name=folder_branch_name, 
-                    pr_name=folder_pr_name,
+                    branch_name=branch_name  + f"_{folder_rel_path.replace(os.sep, '_')}", 
+                    pr_name=pr_name + f" `{folder_rel_path}`",
                     target_branch=target_branch
                 )
 

@@ -235,8 +235,8 @@ def main():
     github_token = args.github_token or os.getenv("GITHUB_TOKEN")
     use_repo_config = args.use_repo_config
     pr_depth = args.pr_depth
-    branch_name = args.branch_name or f"feature/docstring-updates-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    pr_name = args.pr_name or f"-- Add docstrings for files in `{path}`"
+    branch_name = args.branch_name or "docstring-ai"
+    pr_name = args.pr_name or "Add docstrings for folder"
     manual = args.manual
 
     # Determine PR target

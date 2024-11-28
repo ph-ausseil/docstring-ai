@@ -99,7 +99,8 @@ def create_github_pr(
     repo_path: str,
     github_token: str,
     github_repo: str,
-    branch_base_name: str,
+    branch_name: str,
+    folder,
     pr_name: str,
     target_branch: str  # Target branch of the PR; After a PR is sent, this branch should be checked out
 ) -> bool:
@@ -127,7 +128,7 @@ def create_github_pr(
         g = Github(github_token)
         repo = g.get_repo(github_repo)
 
-        sanitized_branch_name = sanitize_branch_name(branch_base_name)
+        sanitized_branch_name = sanitize_branch_name(branch_name)
         unique_suffix = generate_unique_suffix()
         full_branch_name = f"{sanitized_branch_name}_{unique_suffix}"
 
