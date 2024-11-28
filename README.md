@@ -1,3 +1,6 @@
+> [WARNING!]
+> Currently in developpment , not fully working (will only add docstring to a few file and crash)
+
 # Docstring-AI 🤖✨
 
 ![License](https://img.shields.io/github/license/ph-ausseil/docstring-ai)
