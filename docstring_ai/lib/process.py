@@ -60,8 +60,7 @@ from docstring_ai import (
     CONTEXT_SUMMARY_PATH,
 )
 
-
-def initialize_and_create_assistant(api_key: str):
+def initialize_and_create_assistant(api_key: str) -> Tuple[str, str]:
     """
     Initializes the OpenAI Assistant and creates a new thread.
     Handles exceptions during initialization and thread creation.
@@ -145,7 +144,7 @@ def process_file_descriptions(
                 logging.error(f"Failed to generate description for {file}: {e}")
 
     # Embed and upload descriptions
-    if file_descriptions_list :
+    if file_descriptions_list:
         embed_and_store_files(collection, file_descriptions_list, tags={"file_type": "description"})
         description_file_ids = upload_files_to_openai(file_descriptions_list)
     return description_file_ids
@@ -185,7 +184,7 @@ def process_files_and_create_prs(
         pr_depth (int): The maximum depth to categorize folders for PR creation.
         manual (bool): Flag indicating if manual approval is required for changes.
         target_branch (str): The target branch for the PRs.
-    
+        
     Returns:
         None
     """

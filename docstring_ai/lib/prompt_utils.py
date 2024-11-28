@@ -13,6 +13,7 @@ Functions:
 - generate_few_shot_examples: Generates few-shot examples based on context.
 - extract_code_from_message: Extracts code blocks from the assistant's messages.
 """
+
 import time
 import openai
 from openai.types.beta import vector_store_create_params
@@ -30,6 +31,8 @@ ASSISTANTS_DEFAULT_TOOLS = [
                 {"type": "code_interpreter"}, 
                 {"type": "file_search"},
             ]
+
+
 class PythonFile(BaseModel):
     new_file_content: str = Field(description="Updated python script with the updated docstrings.")
 
@@ -162,8 +165,8 @@ def construct_few_shot_prompt(
     """
     try:
         documents = get_relevant_context(collection=collection,
-        classes =classes,
-        max_tokens = max_tokens // 2,
+        classes=classes,
+        max_tokens=max_tokens // 2,
         where={"file_type": "script"},
         )
 
@@ -187,10 +190,10 @@ def send_message_to_assistant(
     thread_id: str,
     prompt: str,
     response_format: BaseModel = None,
-    tools : List = [],
+    tools: List = [],
     tool_choice = "auto",
-    functions : Dict[str, Callable] = {}
-    ) -> str:
+    functions: Dict[str, Callable] = {}
+) -> str:
     """
     Sends a prompt to the Assistant and retrieves the response.
 
@@ -213,14 +216,14 @@ def send_message_to_assistant(
             thread_id=thread_id,
             assistant_id=assistant_id,
             response_format=response_format,
-            tool_choice=tool_choice ,
-            tools=ASSISTANTS_DEFAULT_TOOLS + tools 
-            )
+            tool_choice=tool_choice,
+            tools=ASSISTANTS_DEFAULT_TOOLS + tools
+        )
         if poll_run_completion(
-            run_id=  run.id, 
+            run_id=run.id,
             thread_id=thread_id,
             functions=functions
-            ):
+        ):
             last_assistant_message = retrieve_last_assistant_message(thread_id)
             return last_assistant_message[-1].text.value
         return "Operation failed due to incomplete run."
@@ -254,7 +257,7 @@ def generate_file_description(assistant_id: str, thread_id: str, file_content: s
         "```"
     )
     return send_message_to_assistant(
-        assistant_id = assistant_id, thread_id = thread_id, prompt = prompt)
+        assistant_id=assistant_id, thread_id=thread_id, prompt=prompt)
 
 
 def create_file_with_docstring(
@@ -262,8 +265,8 @@ def create_file_with_docstring(
     thread_id: str,
     code: str,
     context: str,
-    functions : Dict[str, Callable]
-    ) -> str:
+    functions: Dict[str, Callable]
+) -> str:
     """
     Adds docstrings to Python code using the Assistant.
 
@@ -300,10 +303,10 @@ def create_file_with_docstring(
     try:
         response = send_message_to_assistant(
             assistant_id=assistant_id,
-            thread_id = thread_id, 
-            prompt = final_prompt,
-            tool_choice= {"type": "function", "function": {"name": "write_file_with_new_docstring"}},
-            tools = [
+            thread_id=thread_id,
+            prompt=final_prompt,
+            tool_choice={"type": "function", "function": {"name": "write_file_with_new_docstring"}},
+            tools=[
                 {"type": "function",
                     "function": {
                         "name": "write_file_with_new_docstring",
@@ -321,24 +324,8 @@ def create_file_with_docstring(
                     }
                 }
             ],
-            functions= functions
-            )
-        # response_format = {
-        #     'type': 'json_schema',
-        #     'json_schema' : {
-        #         'name': 'new_pyton_script',
-        #         'schema': {
-        #             'type': 'object',
-        #             'properties': {
-        #                 'content': {'type': 'string', 'description': 'Updated python script with the updated docstrings.'}
-        #                 },
-        #             'required': ['content'],
-        #             'additionalProperties': False
-        #             },
-        #         'strict': True}
-        #         }
-        #     }
-        #     
+            functions=functions
+        )
     except Exception as e: 
         print(f"Error : {e}")
         raise Exception(e)
@@ -364,11 +351,11 @@ def create_vector_store(vector_store_name: str, file_ids: List[str]) -> str:
     """
     vector_store = openai.beta.vector_stores.create(
         name=vector_store_name,
-        expires_after = vector_store_create_params.ExpiresAfter(
-            anchor = "last_active_at",
-            days = 3
+        expires_after=vector_store_create_params.ExpiresAfter(
+            anchor="last_active_at",
+            days=3
         )
-        )
+    )
     openai.beta.vector_stores.file_batches.create(
         vector_store_id=vector_store.id,
         file_ids=file_ids,
@@ -379,8 +366,8 @@ def create_vector_store(vector_store_name: str, file_ids: List[str]) -> str:
 def poll_run_completion(
     run_id: str,
     thread_id: str,
-    functions : Dict[str, Callable]
-    ) -> bool:
+    functions: Dict[str, Callable]
+) -> bool:
     """
     Polls until the run is completed, failed, or cancelled, with a retry mechanism.
 
@@ -449,7 +436,6 @@ def poll_run_completion(
             except Exception as e:
                 logging.error(f"An error occurred while polling the run: {e}")
                 break  # Exit the inner loop to retry
-        
         retries += 1
         if retries > MAX_RETRIES:
             logging.error(f"Maximum retries reached for run {run_id}. Aborting.")
@@ -481,9 +467,9 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
 
     if hasattr(thread_messages[-1],'role') : 
         logging.debug(f"##### Success : ")
-        logging.debug(f"role:{thread_messages[-1].role}")
-        logging.debug(f"create_at:{thread_messages[-1].created_at}")
-        logging.debug(f"status:{thread_messages[-1].status}\n")
+        logging.debug(f"role:{{thread_messages[-1].role}}")
+        logging.debug(f"create_at:{{thread_messages[-1].created_at}}")
+        logging.debug(f"status:{{thread_messages[-1].status}}\n")
     else :
         logging.error(f"##### Failure : ")
         logging.error(thread_messages)

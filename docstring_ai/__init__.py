@@ -24,6 +24,8 @@ Constants:
         The name of the file used for caching purposes to optimize the retrieval of stored results.
     CONTEXT_SUMMARY_PATH (str): 
         The file path for storing context summaries during processing tasks.
+    DATA_PATH (str): 
+        The path where data files are stored.
 """
 
 from .lib.config import (
