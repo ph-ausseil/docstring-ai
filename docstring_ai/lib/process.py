@@ -292,17 +292,17 @@ def process_files_and_create_prs(
     for depth, folders in reversed(folder_dict.items()):
         for folder in folders:
             logging.info(f"\nProcessing folder '{folder}' at depth {depth}...")
-            pr_files = get_python_files(folder)
-            if not pr_files:
+            python_files_to_process = get_python_files(folder)
+            if not python_files_to_process:
                 logging.info(f"No Python files found in folder '{folder}'. Skipping.")
                 continue  # Skip folders with no Python files
             else: 
-                logging.info(f"Processing : {' '.join(pr_files)}")
+                logging.info(f"Processing : {' '.join(python_files_to_process)}")
 
             # Step 12: Process Each Python File for Docstrings
             logging.info("\nProcessing Python files to add docstrings...")
-            with tqdm(total=len(pr_files), desc=f"Adding docstrings in '{folder}'", unit="file", dynamic_ncols=True) as pbar:
-                for python_file_path in pr_files:
+            with tqdm(total=len(python_files_to_process), desc=f"Adding docstrings in '{folder}'", unit="file", dynamic_ncols=True) as pbar:
+                for python_file_path in python_files_to_process:
                     process_single_file(
                         python_file_path=python_file_path,
                         repo_path=repo_path,

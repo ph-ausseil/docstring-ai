@@ -431,25 +431,26 @@ def poll_run_completion(
                 else:
                     logging.debug(f"Run {run_id} still in progress. Waiting...")
                     if status == "requires_action":
-                        for tool_call in current_run.required_action.submit_tool_outputs.tool_calls:
-                            if tool_call.function.name == "write_file_with_new_docstring":
-                                return_value = functions[tool_call.function.name](**json.loads(tool_call.function.arguments))
+                        try : 
+                            for tool_call in current_run.required_action.submit_tool_outputs.tool_calls:
+                                if tool_call.function.name == "write_file_with_new_docstring":
+                                    return_value = functions[tool_call.function.name](**json.loads(tool_call.function.arguments))
 
-                                if return_value:
-                                    openai.beta.threads.runs.submit_tool_outputs(
-                                        thread_id=thread_id,
-                                        run_id=run_id,
-                                        tool_outputs=[
-                                            {
-                                                "tool_call_id": tool_call.id,
-                                                "output": ""
-                                            }
-                                        ]
-                                    )
-                                    return return_value
-                                    
-                        logging.error(f"Tool returned value : {return_value}")
-                        raise Exception(f"Tool returned value : {return_value}")
+                                    if return_value:
+                                        openai.beta.threads.runs.submit_tool_outputs(
+                                            thread_id=thread_id,
+                                            run_id=run_id,
+                                            tool_outputs=[
+                                                {
+                                                    "tool_call_id": tool_call.id,
+                                                    "output": ""
+                                                }
+                                            ]
+                                        )
+                                logging.info(f"Tool called : {tool_call.function.name}")
+                                logging.info(f"Tool returned : {str(return_value)}")
+                        except Exception as e: 
+                            logging.error(f"Exception raised during Tool Call: {e}")
                         
                     time.sleep(RETRY_BACKOFF)
             except Exception as e:
