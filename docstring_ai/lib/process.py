@@ -118,6 +118,7 @@ def process_file_descriptions(
         List[str]: List of successfully uploaded description file IDs.
     """
     file_descriptions_list = []
+    description_file_ids = []
     for file in files_to_process:
         relative_path = str(Path(os.path.relpath(file, repo_path)))
         if not any(str(Path(entry["file"])) == relative_path for entry in context_summary):
