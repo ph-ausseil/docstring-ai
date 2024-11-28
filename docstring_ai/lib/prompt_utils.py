@@ -165,16 +165,16 @@ def construct_few_shot_prompt(
         where={"file_type": "script"},
         )
 
-        examples = "You will be asked to generate dosctrings. To do so we will give you some example of python code as well as some contextual information.\n"
+        context = ""
 
         if documents:    
-            examples += "Python classes with comprehensive docstrings:\n\n"
-            examples +=f"{documents}\n\n"
+            context += "Python classes with comprehensive docstrings:\n\n"
+            context +=f"{documents}\n\n"
         if context: 
-            examples +="Contextual informations\n"
-            examples +=f"{context}\n\n"
+            context +="More informations\n"
+            context +=f"{context}\n\n"
         
-        return examples
+        return context
     except Exception as e:
         logging.error(f"Error constructing few-shot prompt: {e}")
         return ""
@@ -273,34 +273,42 @@ def create_file_with_docstring(
     Returns:
         str: The code with added docstrings, or None if an error occurs.
     """
+
+    initial_prompt = "You will be asked to generate dosctrings for a Python . To do so we will give you some contextual information in the section (Context), then the script in the section (Instructions) .\n"
+
     escaped_code = code.replace('```', '` ``')
-    prompt = str(context) + (
+    instructions = (
         "Please add appropriate docstrings to the following Python code. "
         "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
         "```python\n"
         f"{escaped_code}\n"
         "```"
     )
-    if context:
-        prompt = f"{context}\n\n" + prompt
+    if not context:
+        context = "We haven't been able to provide additional context"
+    
+    final_prompt = initial_prompt 
+    final_prompt += f"\n\n## Context\n\n{context}"
+    final_prompt += f"\n\n## Instructions\n\n{instructions}"
 
-    try :
+
+    try:
         response = send_message_to_assistant(
-            assistant_id = assistant_id,
+            assistant_id=assistant_id,
             thread_id = thread_id, 
-            prompt = prompt,
+            prompt = final_prompt,
             tool_choice= {"type": "function", "function": {"name": "write_file_with_new_docstring"}},
             tools = [
                 {"type": "function",
                     "function": {
                         "name": "write_file_with_new_docstring",
-                        "description": "Writes the updated Python file content with updated docstrings.",
+                        "description": "Add docstrings to a python file (.py).",
                         "parameters": {
                             "type": "object",
                             "properties": {
                                 "new_file_content": {
                                     "type": "string",
-                                    "description": "The complete content of the Python file with the updated docstrings."
+                                    "description": "Content of the python file (.py). This content should be the original script + added docstring."
                                 }
                             },
                             "required": ["new_file_content"]
