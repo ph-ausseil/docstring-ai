@@ -68,7 +68,11 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
     return collection
 
 
-def embed_and_store_files(collection: chromadb.Collection, python_files: List[str], tags : Dict[str , str] = {}) -> None:
+def embed_and_store_files(
+    collection: chromadb.Collection,
+    files: List[str],
+    tags : Dict[str , str] = {}
+    ) -> None:
     """
     Embed each Python file and store it in ChromaDB.
 
@@ -85,7 +89,7 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
     ids = []
     documents = []
     metadatas = []
-    for file_path in python_files:
+    for file_path in files:
         file_path = str(file_path)
         try:
             with open(file_path, 'r', encoding='utf-8') as f:

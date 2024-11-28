@@ -144,8 +144,9 @@ def process_file_descriptions(
                 logging.error(f"Failed to generate description for {file}: {e}")
 
     # Embed and upload descriptions
-    embed_and_store_files(collection, file_descriptions_list, tags={"file_type": "description"})
-    description_file_ids = upload_files_to_openai(file_descriptions_list)
+    if file_descriptions_list :
+        embed_and_store_files(collection, file_descriptions_list, tags={"file_type": "description"})
+        description_file_ids = upload_files_to_openai(file_descriptions_list)
     return description_file_ids
 
 
