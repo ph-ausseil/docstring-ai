@@ -228,7 +228,7 @@ def send_message_to_assistant(
     except Exception as e:
         print(f"Response format is : {response_format}")
         logging.error(f"Error during interaction with Assistant: {e}")
-        return "Operation failed due to an API error."
+        return f"Operation failed due to an API error {e}."
 
 
 def generate_file_description(assistant_id: str, thread_id: str, file_content: str) -> str:
