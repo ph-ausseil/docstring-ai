@@ -121,9 +121,9 @@ def embed_and_store_files(collection: chromadb.Collection, python_files: List[st
         logging.info(f"Embedded and stored {len(ids)} files in ChromaDB.")
     except Exception as e:
         logging.error(f"Error adding documents to ChromaDB: {e}")
-        logging(f"ids = {ids}")
-        logging(f"metadatas = {metadatas}")
-        logging(f"documents = {documents}")
+        logging.error(f"ids = {ids}")
+        logging.error(f"metadatas = {metadatas}")
+        logging.error(f"documents = {documents}")
         logging.error(traceback.format_exc())
 
 
