@@ -58,7 +58,7 @@ def get_or_create_collection(client: chromadb.Client, collection_name: str) -> c
                 )
             )
     
-    logging.info(f"ChromaDB Collection '{collection_name}' not found. Creating a new one.")
+    logging.debug(f"ChromaDB Collection '{collection_name}' not found. Creating a new one.")
     collection = client.create_collection(
         name=collection_name,
         embedding_function=embedding_functions.OpenAIEmbeddingFunction(
