@@ -99,14 +99,16 @@ poetry install
 
 Run Docstring-AI to automatically generate docstrings for your Python repository:
 
-!bash
+```bash
 poetry run . --path=/path/to/repo
+```
 
 > [!TIP]
 > Use the `--use-repo-config` flag for seamless Git integration. It automatically detects the repository configuration.
 
-!bash
+```bash
 poetry run . --path=/path/to/repo --use-repo-config
+```
 
 ---
 
@@ -114,8 +116,9 @@ poetry run . --path=/path/to/repo --use-repo-config
 
 Enable GitHub integration to create pull requests for your changes:
 
-!bash
+```bash
 poetry run . --path=/path/to/repo --pr=yourusername/yourrepo --github-token=YOUR_GITHUB_TOKEN
+```
 
 ---
 
@@ -123,8 +126,9 @@ poetry run . --path=/path/to/repo --pr=yourusername/yourrepo --github-token=YOUR
 
 Enable manual review of changes to ensure they align with your requirements:
 
-!bash
+```bash
 poetry run . --path=/path/to/repo --manual
+```
 
 ---
 
@@ -132,8 +136,9 @@ poetry run . --path=/path/to/repo --manual
 
 Combine multiple flags for greater flexibility, such as GitHub integration and manual validation:
 
-!bash
+```bash
 poetry run . --path=/path/to/repo --pr=yourusername/yourrepo --github-token=YOUR_GITHUB_TOKEN --manual
+```
 
 ---
 
