@@ -356,7 +356,7 @@ def create_file_with_docstring(
         raise Exception(e)
 
     if response:
-        logging.info(f"The Response is : {response}")
+        logging.debug(f"The Response is : {response[:200]}")
         return response
     return None
 
@@ -447,8 +447,8 @@ def poll_run_completion(
                                                 }
                                             ]
                                         )
-                                logging.info(f"Tool called : {tool_call.function.name}")
-                                logging.info(f"Tool returned : {str(return_value)}")
+                                logging.debug(f"Tool called : {tool_call.function.name}")
+                                logging.debug(f"Tool returned : {str(return_value)}")
                         except Exception as e: 
                             logging.error(f"Exception raised during Tool Call: {e}")
                         
