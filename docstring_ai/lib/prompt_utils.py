@@ -415,7 +415,9 @@ def poll_run_completion(
                 elif status in ['failed', 'expired', 'cancelled']: 
                     logging.error(f"Run {run_id} ended with status: {status}")
                     logging.error(f"Details : {current_run.last_error}")
-                    break  # Exit the inner loop to retry
+                    retries += 1
+                    time.sleep(RETRY_BACKOFF)
+                    return False
                 else:
                     logging.debug(f"Run {run_id} still in progress. Waiting...")
                     if status == "requires_action":
