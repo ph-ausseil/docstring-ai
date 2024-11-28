@@ -119,8 +119,8 @@ def process_file_descriptions(
     """
     file_descriptions_list = []
     for file in files_to_process:
-        relative_path = os.path.relpath(file, repo_path)
-        if not any(entry["file"] == relative_path for entry in context_summary):
+        relative_path = str(Path(os.path.relpath(file, repo_path)))
+        if not any(str(Path(entry["file"])) == relative_path for entry in context_summary):
             try:
                 with open(file, 'r', encoding='utf-8') as f:
                     file_content = f.read()
