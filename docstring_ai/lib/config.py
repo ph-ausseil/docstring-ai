@@ -123,6 +123,15 @@ class ColoredFormatter(logging.Formatter):
     RESET = Style.RESET_ALL
 
     def format(self, record):
+        """
+        Formats the specified log record and applies color coding based on severity.
+
+        Args:
+            record (logging.LogRecord): The log record to format.
+
+        Returns:
+            str: The formatted log message with color encoding.
+        """
         color = self.COLOR_MAP.get(record.levelno, self.RESET)
         record.levelname = f"{color}{record.levelname}{self.RESET}"
         return super().format(record)
@@ -130,15 +139,50 @@ class ColoredFormatter(logging.Formatter):
 
 EXCLUDED_LOG_MODULES = ['_client', 'openai', 'urllib3', 'http.client', 'httpx','_trace' , 'httpcore' , 'chromadb.config', 'httpcore.connection' , 'httpcore.http11']
 class ExcludeLibrariesFilter(logging.Filter):
+    """
+    A logging filter that excludes log messages from specified libraries.
+
+    This filter helps reduce clutter in the logging output by preventing logs from unsolicited library messages.
+    """
     def filter(self, record):
+        """
+        Determines if the log record should be excluded based on its origin.
+
+        Args:
+            record (logging.LogRecord): The log record to evaluate.
+
+        Returns:
+            bool: True if the log record should be included, False if it should be excluded.
+        """
         return not any(record.name.startswith(module) for module in EXCLUDED_LOG_MODULES)
 
 class HTTPRequestFilter(logging.Filter):
+    """
+    A logging filter that excludes HTTP request logs from the output.
+
+    This filter ensures that extensive HTTP interaction logs are not included, providing cleaner output.
+    """
     def filter(self, record):
-        # Exclude HTTP request logs
+        """
+        Determines if the log record related to HTTP requests should be excluded.
+
+        Args:
+            record (logging.LogRecord): The log record to evaluate.
+
+        Returns:
+            bool: True if the log record should be included, False if it contains 'HTTP Request:'.
+        """
         return 'HTTP Request:' not in record.getMessage()
 
+
 def setup_logging():
+    """
+    Configures the logging setup for the application to use a custom formatter
+    and handler.
+
+    It initializes a ColoredFormatter for console output, sets the logging level,
+    and applies filters to suppress logs from specific libraries.
+    """
     formatter = ColoredFormatter(
         '%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
     )
