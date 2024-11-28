@@ -523,6 +523,7 @@ def approve_and_save_file(
     Returns:
         bool: True if the file was successfully updated and saved, False otherwise.
     """
+    new_file_content = new_file_content.replace('` ``', '```')
     # Check if there's any change in the file content
     if not new_file_content:
         logging.info(f"No changes made to {python_file_path}.")

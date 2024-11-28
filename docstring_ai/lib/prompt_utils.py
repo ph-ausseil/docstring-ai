@@ -180,32 +180,6 @@ def construct_few_shot_prompt(
         return ""
 
 
-
-def extract_code_from_message(message: str) -> str:
-    """
-    Extracts the code block from the assistant's message.
-
-    This function uses a regular expression to find and extract code blocks
-    formatted in a specific way from the assistant's message.
-
-    Args:
-        message (str): The assistant's message string containing the code block.
-
-    Returns:
-        str: The extracted code block.
-
-    Raises:
-        Exception: If no code block is found in the assistant's response.
-    """
-    import re
-    code_pattern = re.compile(r"```python\n([\s\S]*?)```")
-    match = code_pattern.search(message)
-    if match:
-        return match.group(1)
-    else:
-        raise Exception("No code block found in the assistant's response.")
-
-
 def send_message_to_assistant(
     assistant_id: str,
     thread_id: str,
@@ -497,14 +471,5 @@ def retrieve_last_assistant_message(thread_id: str) -> str:
         logging.error(f"##### Failure : ")
         logging.error(thread_messages)
 
-    # try:
-    #     extract_code_from_message(thread_messages[-1].content[-1].text.value)
-    # except Exception:
-    #     print("Error : last 5 messsages ")
-    #     for message in thread_messages[-5]:
-    #         print(f"#######################")
-    #         print(f"role:{message.role}")
-    #         print(f"create_at:{message.created_at}")
-    #         print(f"status:{message.status}\n")
     return thread_messages[-1].content
 

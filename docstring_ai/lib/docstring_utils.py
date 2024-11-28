@@ -18,7 +18,6 @@ import logging
 from typing import List, Dict
 import logging
 from docstring_ai import RETRY_BACKOFF
-from docstring_ai.lib.prompt_utils import extract_code_from_message
 
 def extract_description_from_docstrings(code_with_docstrings: str) -> str:
     """
