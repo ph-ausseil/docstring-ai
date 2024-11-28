@@ -280,6 +280,7 @@ def create_file_with_docstring(
     instructions = (
         "Please add appropriate docstrings to the following Python code. "
         "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
+        "### Original python script :"
         "```python\n"
         f"{escaped_code}\n"
         "```"
@@ -308,7 +309,7 @@ def create_file_with_docstring(
                             "properties": {
                                 "new_file_content": {
                                     "type": "string",
-                                    "description": "Content of the python file (.py). This content should be the original script + added docstring."
+                                    "description": "Content of the python file (.py). This content should be the original script + added docstrings."
                                 }
                             },
                             "required": ["new_file_content"]
