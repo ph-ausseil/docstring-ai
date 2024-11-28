@@ -278,7 +278,7 @@ def process_files_and_create_prs(
             i = 0
             length = len(python_files_sorted)
             while i < length: 
-                if (python_files_sorted[0].startswith(folder)):
+                if (python_files_sorted[0].startswith(str(Path(folder)))):
                     python_files_to_process.append(python_files_sorted.pop(0))
                 
                 i += 1
