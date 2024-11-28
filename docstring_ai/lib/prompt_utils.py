@@ -220,7 +220,7 @@ def send_message_to_assistant(
             run_id=  run.id, 
             thread_id=thread_id,
             functions=functions
-            ):
+            ): 
             last_assistant_message = retrieve_last_assistant_message(thread_id)
             return last_assistant_message[-1].text.value
         return "Operation failed due to incomplete run."
@@ -279,8 +279,8 @@ def create_file_with_docstring(
 
     initial_prompt = "You will be asked to generate dosctrings for a Python . To do so we will give you some contextual information in the section (Context), then the script in the section (Instructions) .\n"
 
-    escaped_code = code.replace('` ``', '`  ``')
-    escaped_code = code.replace('```', '` ``')
+    escaped_code = code.replace('```', '`  ``')
+    escaped_code = code.replace('```', '```')
     instructions = (
         "Please add appropriate docstrings to the following Python code. "
         "Ensure that all functions, classes, and modules have clear and concise docstrings explaining their purpose, parameters, return values, and any exceptions raised.\n\n"
@@ -295,7 +295,6 @@ def create_file_with_docstring(
     final_prompt = initial_prompt 
     final_prompt += f"\n\n## Context\n\n{context}"
     final_prompt += f"\n\n## Instructions\n\n{instructions}"
-
 
     try:
         response = send_message_to_assistant(
@@ -322,23 +321,7 @@ def create_file_with_docstring(
                 }
             ],
             functions= functions
-            )
-        # response_format = {
-        #     'type': 'json_schema',
-        #     'json_schema' : {
-        #         'name': 'new_pyton_script',
-        #         'schema': {
-        #             'type': 'object',
-        #             'properties': {
-        #                 'content': {'type': 'string', 'description': 'Updated python script with the updated docstrings.'}
-        #                 },
-        #             'required': ['content'],
-        #             'additionalProperties': False
-        #             },
-        #         'strict': True}
-        #         }
-        #     }
-        #     
+        )
     except Exception as e: 
         print(f"Error : {e}")
         raise Exception(e)
@@ -368,7 +351,7 @@ def create_vector_store(vector_store_name: str, file_ids: List[str]) -> str:
             anchor = "last_active_at",
             days = 3
         )
-        )
+    )
     openai.beta.vector_stores.file_batches.create(
         vector_store_id=vector_store.id,
         file_ids=file_ids,
