@@ -1,5 +1,7 @@
-> [WARNING!]
-> Currently in developpment , not fully working (will only add docstring to a few file and crash)
+
+
+> [!IMPORTANT]
+> **Safe to use (create PR & Backup) but will add docstring to a few files and crashes. It is in development not production ready**
 
 # Docstring-AI 🤖✨
 
