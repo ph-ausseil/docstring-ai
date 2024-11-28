@@ -47,7 +47,7 @@ from docstring_ai.lib.docstring_utils import (
 from docstring_ai.lib.process import process_files_and_create_prs
 from docstring_ai.lib.utils import (
     check_git_repo,
-    has_uncommitted_changes,
+    repo_has_uncommitted_changes,
     load_cache,
     save_cache,
     get_python_files,

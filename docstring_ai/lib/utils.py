@@ -114,7 +114,7 @@ def check_git_repo(repo_path) -> bool:
         return False
 
 
-def has_uncommitted_changes(repo_path) -> bool:
+def repo_has_uncommitted_changes(repo_path) -> bool:
     """
     Checks for uncommitted changes in the Git repository.
     

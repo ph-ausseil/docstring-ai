@@ -22,7 +22,7 @@ from tqdm import tqdm
 from docstring_ai.lib.utils import (
     ensure_docstring_header,
     check_git_repo,
-    has_uncommitted_changes,
+    repo_has_uncommitted_changes,
     file_has_uncommitted_changes,
     load_cache,
     save_cache,
