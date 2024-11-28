@@ -19,13 +19,9 @@ Docstring-AI is an advanced tool that **automates the generation of high-quality
 ### 🌟 Key Features
 
 - **Automated Docstring Generation**: Leverages AI to generate comprehensive and context-aware docstrings.
-- **Automatic Detection of Git Repository**: Detects if a folder is a Git repository and integrates seamlessly.
-- **Integration with ChromaDB**: Uses vector search for similarity-based context enrichment.
-- **Efficient Caching**: Reduces API calls by implementing a SHA-256-based caching mechanism.
-- **Incremental Knowledge Building**: Processes files incrementally, building context to improve docstring quality over time.
-- **GitHub Integration**: Automatically creates pull requests with documentation updates.
-- **Manual Validation with Diff Preview**: Enables optional manual review to ensure changes align with your requirements.
-
+- **Automatic Detection of Git Repository**: Detects if a folder is a Git repository create PR (Example : [#4](https://github.com/ph-ausseil/docstring-ai/pull/4))
+- **Manual Validation with Diff Preview**: using `--manual` argument 
+- **Optimized**: Cache (Reduce API calls), Building Context Over Time (**Still Ongoing**), Prioritize small files
 
 ---
 
@@ -425,19 +421,11 @@ For any questions, suggestions, or feedback, please reach out to me on LinkedIn
 If you found this project useful and want to show your support, you can:
 
 <!--
-### 💖 Buy Me a Coffee
+### 💖 Buy Me a Coffee (or contribute to my OpenAI API Consumption)
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-orange)](https://www.buymeacoffee.com/yourusername)
 
- Replace "yourusername" with your actual Buy Me a Coffee username.
-
 Your support helps keep this project alive and well-maintained. Thank you for contributing to its growth!
-
----
-
-### 💰 Bitcoin Tipping
-
-If you prefer crypto, feel free to send Bitcoin to the following address:
 
 **Bitcoin Address**: `your-bitcoin-address-here`
 
