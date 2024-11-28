@@ -439,6 +439,9 @@ def poll_run_completion(
                                 logging.debug(f"Tool returned : {str(return_value)}")
                         except Exception as e: 
                             logging.error(f"Exception raised during Tool Call: {e}")
+                            retries += 1
+                            time.sleep(RETRY_BACKOFF)
+                            return False
                         
                     time.sleep(RETRY_BACKOFF)
             except Exception as e:
