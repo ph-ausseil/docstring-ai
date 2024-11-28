@@ -408,26 +408,14 @@ This project is licensed under the [MIT License](https://github.com/yourusername
 
 For any questions, suggestions, or feedback, please reach out to me on LinkedIn
 
-<!-- 
+
 
 ## ☕ Support the Project
 
 
-If you found this project useful and want to show your support, you can:
+If you found this project useful and want to show your support, you can contribute to my OpenAI API consumption & buy me a coffee :
 
-<!--
-### 💖 Buy Me a Coffee (or contribute to my OpenAI API Consumption)
-
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-orange)](https://www.buymeacoffee.com/yourusername)
-
-Your support helps keep this project alive and well-maintained. Thank you for contributing to its growth!
-
-**Bitcoin Address**: `your-bitcoin-address-here`
-
-
-You can also scan the QR code below to send Bitcoin directly:
-
-![Bitcoin QR Code](path/to/qr-code.png)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-orange)](https://www.buymeacoffee.com/phausseil) & **Bitcoin Address**: 3Dj9HfwzmduDuZrT6ieHQzkM6M8oDBhW6t
 
 ---
 
