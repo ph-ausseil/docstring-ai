@@ -275,9 +275,14 @@ def process_files_and_create_prs(
         for folder in folders:
             python_files_to_process = []
             logging.info(f"\nProcessing folder '{folder}'...")
-            while python_files_sorted: 
+
+            i = 0
+            length = len(python_files_sorted)
+            while i < length: 
                 if (python_files_sorted[0].startswith(folder)):
                     python_files_to_process.append(python_files_sorted.pop(0))
+                
+                i += 1
             
             if not python_files_to_process:
                 logging.info(f"No Python files found in folder '{folder}'. Skipping.")
