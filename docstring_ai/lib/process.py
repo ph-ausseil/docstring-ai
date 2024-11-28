@@ -77,13 +77,13 @@ def initialize_and_create_assistant(api_key: str):
         if not assistant_id:
             logging.error("Failed to initialize OpenAI Assistant.")
             return None, None
-        logging.info(f"Assistant initialized with ID: {assistant_id}")
+        logging.debug(f"Assistant initialized with ID: {assistant_id}")
 
         thread_id = create_thread(api_key=api_key, assistant_id=assistant_id)
         if not thread_id:
             logging.error("Failed to create a new thread for the Assistant.")
             return assistant_id, None
-        logging.info(f"Thread created with ID: {thread_id}")
+        logging.debug(f"Thread created with ID: {thread_id}")
 
         return assistant_id, thread_id
     except Exception as e:
@@ -228,9 +228,9 @@ def process_files_and_create_prs(
     cache = load_cache(cache_path)
 
     # Traverse repository and categorize folders based on pr_depth
-    logging.info("\nTraversing repository to categorize folders based on pr_depth...")
+    logging.debug("\nTraversing repository to categorize folders based on pr_depth...")
     folder_dict = traverse_repo(repo_path, pr_depth)
-    logging.info(f"Found {len(folder_dict)} depth levels up to {pr_depth}.")
+    logging.debug(f"Found {len(folder_dict)} depth levels up to {pr_depth}.")
 
     # Load Context Summary
     context_summary_full_path = os.path.join(repo_path, CONTEXT_SUMMARY_PATH)
@@ -441,7 +441,7 @@ def process_single_file(
     cached_entry = next((item for item in context_summary if str(Path(item["file"])) == str(Path(relative_path))), None)
     if cached_entry:
         file_description = cached_entry.get("description", "")
-        logging.info(f"Using cached description for {python_file_path}.")
+        logging.debug(f"Using cached description for {python_file_path}.")
     else: 
         logging.error("No file description found in context_summary. Please ensure descriptions are generated before processing files.")
         file_description = ""  # Initialize to empty string or handle accordingly
@@ -459,7 +459,7 @@ def process_single_file(
     )
 
     # Add docstrings using Assistant's API
-    logging.info(f"Generating new docstrings for: {python_file_path}")
+    logging.debug(f"Generating new docstrings for: {python_file_path}")
 
     # Create a partial function for approval and saving
     patched_approve_and_save_file = partial(
