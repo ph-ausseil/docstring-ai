@@ -187,23 +187,27 @@ def save_cache(cache_file: str, cache: Dict[str, str]):
         logging.error(f"Error saving cache file '{cache_file}': {e}")
 
 
+
 def get_python_files(repo_path: str) -> List[str]:
     """
-    Recursively retrieve all Python files in the specified repository.
+    Retrieves a list of all Python files in the given repository.
     
     Args:
-        repo_path (str): The path to the Git repository.
-
+        repo_path (str): The local path to the GitHub repository.
+    
     Returns:
-        List[str]: A list of paths to Python files.
+        List[str]: A list of Python file paths.
     """
     python_files = []
     for root, dirs, files in os.walk(repo_path):
+        # Skip hidden directories
+        dirs[:] = [d for d in dirs if not d.startswith('.') or not "__pycache__"]  
         for file in files:
-            if file.endswith(".py"):
-                python_files.append(os.path.join(root, file))
+            if file.endswith('.py'):
+                full_path = os.path.join(root, file)
+                python_files.append(os.path.relpath(full_path, repo_path))
+    logging.info(f"Total Python files found: {len(python_files)}")
     return python_files
-
 
 def sort_files_by_size(file_paths: List[str]) -> List[str]:
     """

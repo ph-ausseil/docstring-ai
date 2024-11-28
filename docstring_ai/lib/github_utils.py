@@ -209,28 +209,6 @@ def create_github_pr(
         return False
 
 
-def get_python_files(repo_path: str) -> List[str]:
-    """
-    Retrieves a list of all Python files in the given repository.
-    
-    Args:
-        repo_path (str): The local path to the GitHub repository.
-    
-    Returns:
-        List[str]: A list of Python file paths.
-    """
-    python_files = []
-    for root, dirs, files in os.walk(repo_path):
-        # Skip hidden directories
-        dirs[:] = [d for d in dirs if not d.startswith('.')]  
-        for file in files:
-            if file.endswith('.py'):
-                full_path = os.path.join(root, file)
-                python_files.append(os.path.relpath(full_path, repo_path))
-    logging.info(f"Total Python files found: {len(python_files)}")
-    return python_files
-
-
 def create_pull_request_body(changed_files: List[str]) -> str:
     """
     Creates the body content for the pull request listing the changed files.

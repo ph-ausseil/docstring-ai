@@ -270,8 +270,12 @@ def process_files_and_create_prs(
     logging.info("\nProcessing folders and creating Pull Requests...")
     for depth, folders in reversed(folder_dict.items()):
         for folder in folders:
+            python_files_to_process = []
             logging.debug(f"\nProcessing folder '{folder}' at depth {depth}...")
-            python_files_to_process = get_python_files(folder)
+            while python_files_sorted: 
+                if (python_files_sorted[0].startswith(folder)):
+                    python_files_to_process.append(python_files_sorted.pop(0))
+            
             if not python_files_to_process:
                 logging.debug(f"No Python files found in folder '{folder}'. Skipping.")
                 continue  # Skip folders with no Python files
