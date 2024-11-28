@@ -112,7 +112,7 @@ def get_staged_files(repo_path: str) -> List[str]:
         return []
 
 
-def create_github_pr(
+def create_github_pr( 
     repo_path: str,
     github_token: str,
     github_repo: str,
@@ -331,7 +331,7 @@ def checkout_branch(repo_path: str, branch_name: str) -> bool:
     """
     try:
         subprocess.run(
-            ["git", "-C", repo_path, "checkout", branch_name],
+            ["git", "-C", repo_path,"checkout", "-B", branch_name],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE

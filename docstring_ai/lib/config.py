@@ -1,7 +1,6 @@
 """
 This module defines constants and logging configuration for a machine learning-based application that interacts with models and APIs. The main functionalities include specifying model parameters, handling API interactions with retry logic, organizing data storage paths, and configuring a customized logging system with colored output for better readability. The module primarily aims at improving the maintainability and usability of code related to model inference and logging.
 
-
 ### Main Functionalities
 1. **Model and API Configuration**:  
    The module manages constants related to model configurations, such as model names, token limits, retry counts, and backoff strategies for API requests.
@@ -11,7 +10,6 @@ This module defines constants and logging configuration for a machine learning-b
 
 3. **Custom Logging Configuration**:  
    The module implements a custom logging setup that includes colored formatting for different log levels and filtering for specific libraries to enhance the clarity and relevance of log output.
-
 
 ### Purpose
 The purpose of this Python file can be summarized as follows:
@@ -59,7 +57,7 @@ The module defines the following classes:
    - `format(self, record)`: Overrides the default format method to apply color to the log level names.
 
 2. **ExcludeLibrariesFilter(logging.Filter)**:
-   - A logging filter that excludes log messages from specified libraries. This prevents clutter in logs from libraries that may generate excessive or non-critical logging output. 
+   - A logging filter that excludes log messages from specified libraries. This prevents clutter in logs from libraries that may generate excessive or non-critical logging output.  
    **Method**:  
    - `filter(self, record)`: Returns `True` if the log record's name does not start with any specified modules in the exclusion list.
 
@@ -82,10 +80,11 @@ In summary, this Python module is integral for efficiently managing configuratio
 """
 
 from pathlib import Path 
+
 # Constants
 
 MODEL = "gpt-4o-mini"  
-"""
+"""  
 str: The name of the model to be used for processing tasks.
 
 This constant specifies which version of the model will be employed for inference and processing tasks.
@@ -96,7 +95,7 @@ Usage:
 """
 
 MAX_TOKENS = 64000  
-"""
+"""  
 int: The maximum number of tokens allowed in a single request to the model.
 
 This constant defines the upper limit on the length of the input text, ensuring that it does not exceed 
@@ -108,7 +107,7 @@ Usage:
 """
 
 EMBEDDING_MODEL = "text-embedding-3-large"  
-"""
+"""  
 str: The name of the OpenAI embedding model used for converting text into embedding vectors.
 
 This constant specifies the model utilized to generate numerical representations of the input text data, 
@@ -120,7 +119,7 @@ Usage:
 """
 
 MAX_RETRIES = 5  
-"""
+"""  
 int: The maximum number of retry attempts for API requests.
 
 This constant defines how many times the system should attempt to resend a request to an external service 
@@ -132,7 +131,7 @@ Usage:
 """
 
 RETRY_BACKOFF = 5  
-"""
+"""  
 int: The time, in seconds, to wait before retrying after a failed API request.
 
 This constant specifies the delay introduced before making a retry attempt following a failed request. 
@@ -144,7 +143,7 @@ Usage:
 """
 
 CHROMA_COLLECTION_NAME = "python_file_contexts"  
-"""
+"""  
 str: The name of the ChromaDB collection used to store context data.
 
 This constant indicates the collection within a Chroma database where context-related data is stored when 
@@ -157,9 +156,8 @@ Usage:
 
 DATA_PATH = Path('./data/')
 
-
 CACHE_FILE_NAME = str(DATA_PATH )+ "docstring_cache.json"
-"""
+"""  
 str: The name of the file used for caching purposes.
 
 This constant specifies the filename for storing cached data, which allows the application to efficiently 
@@ -170,8 +168,8 @@ Usage:
     Utilize this filename when implementing caching logic to store and retrieve data efficiently.
 """
 
-CONTEXT_SUMMARY_PATH = str(DATA_PATH) + "context_summary.json" 
-"""
+CONTEXT_SUMMARY_PATH = str(DATA_PATH) + "context_summary.json"  
+"""  
 str: The path for storing context summaries.
 
 This constant specifies the file path where context summaries are stored, enabling easy retrieval and 
@@ -237,6 +235,7 @@ class ExcludeLibrariesFilter(logging.Filter):
             bool: True if the log record should be logged, False if it should be excluded.
         """
         return not any(record.name.startswith(module) for module in EXCLUDED_LOG_MODULES)
+
 
 class HTTPRequestFilter(logging.Filter):
     """

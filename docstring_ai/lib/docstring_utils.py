@@ -31,7 +31,7 @@ def extract_description_from_docstrings(code_with_docstrings: str) -> str:
         code_with_docstrings (str): The Python code containing docstrings.
 
     Returns:
-        str: A semicolon-separated string of descriptions extracted from 
+        str: A semicolon-separated string of descriptions extracted from
              the docstrings. If no descriptions are found, returns an empty string.
 
     Raises:
@@ -57,7 +57,7 @@ def extract_class_docstring(code: str, class_name: str) -> str:
     """
     Extracts the docstring of a specific class from the provided code.
 
-    This function analyzes the code to find the class definition matching the 
+    This function analyzes the code to find the class definition matching the
     specified class name and returns its associated docstring.
 
     Args:
@@ -85,9 +85,9 @@ def parse_classes(file_path: str) -> Dict[str, List[str]]:
     """
     Parses a Python file and returns a dictionary of classes and their parent classes.
 
-    This function reads a Python file and uses the Abstract Syntax Tree (AST) 
-    to identify classes and their inherited parent classes. The result is a 
-    dictionary where class names are keys and their corresponding parent classes 
+    This function reads a Python file and uses the Abstract Syntax Tree (AST)
+    to identify classes and their inherited parent classes. The result is a
+    dictionary where class names are keys and their corresponding parent classes
     are values in a list.
 
     Args:
@@ -116,7 +116,6 @@ def parse_classes(file_path: str) -> Dict[str, List[str]]:
                 ]
                 classes[node.name] = parent_classes
     except Exception as e:
-
         print(file_content)
         print("#######################")
         print("#########EOF###########")
@@ -265,7 +264,6 @@ class DocstringExtractor:
             if isinstance(node, ast.ImportFrom):
                 module = node.module
                 if module is None:
-                    # Handles cases like 'from . import something'
                     logging.debug(f"Skipping relative import in file {self.file_path}.")
                     continue
 
