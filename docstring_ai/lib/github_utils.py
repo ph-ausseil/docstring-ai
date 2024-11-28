@@ -117,7 +117,6 @@ def create_github_pr(
     github_token: str,
     github_repo: str,
     branch_name: str,
-    folder,
     pr_name: str,
     target_branch: str  # Target branch of the PR; After a PR is sent, this branch should be checked out
 ) -> bool:
