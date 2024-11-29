@@ -34,8 +34,6 @@ Docstring-AI is an advanced tool that **generate high-quality Python docstrings*
 1. [📜 What is Docstring-AI?](#-what-is-docstring-ai)
 2. [🌟 Key Features](#-key-features)
 3. [🚀 Getting Started](#-getting-started)
-   - [Prerequisites](#prerequisites)
-   - [Installation](#installation)
 4. [🏃‍♂️ Running Docstring-AI](#️-running-docstring-ai)
    - [Basic Usage](#basic-usage)
    - [With GitHub Pull Request Creation](#with-github-pull-request-creation)
@@ -52,21 +50,6 @@ Docstring-AI is an advanced tool that **generate high-quality Python docstrings*
 ---
 
 ## 🚀 Getting Started
-
-### Prerequisites
-
-- **Poetry**: Install via pip
-```bash
-pip install poetry
-```
-  
-- **OpenAI API Key**: Obtain from the [OpenAI Dashboard](https://platform.openai.com/account/api-keys).
-  
-- **Git (Optional)**: For repositories where you want to create pull requests. Install from [Git Downloads](https://git-scm.com/downloads).
-
----
-
-### Installation
 
 1. **Clone the Repository**
 ```bash
@@ -104,20 +87,10 @@ poetry run . --path=/path/to/repo
 ```
 
 > [!TIP]
-> Use the `--use-repo-config` flag for seamless Git integration. It automatically detects the repository configuration.
+> To skip users confirmartions use the `--use-repo-config` flag for seamless Git integration. It automatically detects the repository local configuration.
 
 ```bash
 poetry run . --path=/path/to/repo --use-repo-config
-```
-
----
-
-### 📦 With GitHub Pull Request Creation
-
-Enable GitHub integration to create pull requests for your changes:
-
-```bash
-poetry run . --path=/path/to/repo --pr=yourusername/yourrepo --github-token=YOUR_GITHUB_TOKEN
 ```
 
 ---
@@ -127,17 +100,7 @@ poetry run . --path=/path/to/repo --pr=yourusername/yourrepo --github-token=YOUR
 Enable manual review of changes to ensure they align with your requirements:
 
 ```bash
-poetry run . --path=/path/to/repo --manual
-```
-
----
-
-### 🛡️ Combining Flags
-
-Combine multiple flags for greater flexibility, such as GitHub integration and manual validation:
-
-```bash
-poetry run . --path=/path/to/repo --pr=yourusername/yourrepo --github-token=YOUR_GITHUB_TOKEN --manual
+poetry run . --path=/path/to/repo --manual 
 ```
 
 ---
@@ -180,48 +143,33 @@ poetry run . --path=/path/to/repo --pr=yourusername/yourrepo --github-token=YOUR
 
 ## 🔍 Detailed Explanation of Git Flags
 
-The Git-related flags control how Docstring-AI integrates with GitHub and your repository’s configuration. Understanding their precedence and behavior ensures optimal usage for pull request creation.
-
-### How It Works:
-
-1. **`--use-repo-config` (Highest Priority)**:  
-   If this flag is used, the tool will detect and prioritize the repository’s Git configuration. This overrides other GitHub-related flags (`--pr`, `--github-token`, etc.) and environment variables.
-   - Example: If `--use-repo-config` is specified, the detected repository URL and branch will be used regardless of other provided flags.
-
-2. **Explicit Flags (`--pr`, `--github-token`, etc.)**:  
-   If `--use-repo-config` is not provided, the tool defaults to explicitly specified flags. These flags override values from the `.env` file or environment variables.
-   - Example: Specifying `--pr=myuser/myrepo` and `--github-token=TOKEN` will use these values instead of those in `.env`.
-
-3. **Environment Variables (`GITHUB_REPO`, `GITHUB_TOKEN`, etc.)**:  
-   If neither `--use-repo-config` nor explicit flags are provided, the tool falls back to environment variables set in the `.env` file.
-
-4. **Fallback Behavior**:  
-   If no configuration (flags or environment variables) is available, GitHub pull request creation is skipped. Files will be directly modified in place.
-
 ---
 
-### Priority and Behavior Overview
+### Priority Policies
 
 | Configuration Method       | Priority     | Description                                                                                      |
 |----------------------------|--------------|--------------------------------------------------------------------------------------------------|
 | `--use-repo-config`        | **Highest**  | Detects repository and branch automatically, overriding all other settings.                     |
-| Explicit Flags (`--pr`, etc.) | High       | Manually specifies repository and GitHub token, overriding environment variables.               |
-| Environment Variables      | Medium       | Reads `GITHUB_REPO` and `GITHUB_TOKEN` from `.env` or system environment.                       |
-| Fallback                   | Lowest      | Skips GitHub integration entirely, modifying files locally.                                     |
+| Explicit Flags (`--pr`, etc.) | Medium       | Manually specifies repository and GitHub token, overriding environment variables.               |
+| Environment Variables      | Lowest       | Reads `GITHUB_REPO` and `GITHUB_TOKEN` from `.env` or system environment.                       |
+<!-- | Fallback                   | Lowest      | Skips GitHub integration entirely, modifying files locally.                                     |-->
 
----
-
-## 🔍 Priority & Overwrite Relationships of Git Flags
-
-Docstring-AI uses a structured hierarchy to determine which Git configuration to use for repository and branch management. The behavior is designed to provide flexibility while leveraging existing configurations effectively.
-
----
-
-### GitHub Repository (`--pr`)
+### Priority Process
 
 > [!NOTE]
 > By default, the application tries to detect the local repository and suggest. User confirmation will be requested.
 
+| Configuration     | Priority (Highest to Lowest)                                                | Default Behavior                          |
+|-------------------|----------------------------------------------------------------------------|-------------------------------------------|
+| Repository (`--pr`) | 1. `--use-repo-config` → 2. Detect Local Config → 3. `--pr` → 4. `GITHUB_REPO` | Detects local repository and suggests it. |
+| Token (`--github-token`) | 1. `--github-token` → 2. `GITHUB_TOKEN`                               | None. Must be explicitly provided.        |
+| Target Branch (`--target-branch`) | 1. `--target-branch` → 2. `GITHUB_TARGET_BRANCH`              | Defaults to the current branch.           |
+| Branch Name (`--branch-name`) | 1. Auto-generated →  `--branch-name`                                              | Auto-generated.                           |
+
+
+---
+<details>
+<summary>Details : GitHub Repository (`--pr`)</summary>
 
 > [!TIP]
 > `--use-repo-config` skips the confirmations process.
@@ -241,11 +189,13 @@ Docstring-AI uses a structured hierarchy to determine which Git configuration to
 
 4. **Environment Variable (`GITHUB_REPO`)**:  
    - Used as a fallback if no other configuration is specified.
-
+</details>
 
 ---
 
-### GitHub Token (`--github-token`)
+<details>
+<summary>Details : GitHub Token (`--github-token`)</summary>
+
 1. **Command-Line Flag**:  
    - Highest priority when provided via the `--github-token` flag.  
    - Overrides the `GITHUB_TOKEN` environment variable.  
@@ -255,10 +205,13 @@ Docstring-AI uses a structured hierarchy to determine which Git configuration to
 
 > [!WARNING]
 > Ensure a GitHub token is provided via `--github-token` or `GITHUB_TOKEN` when using GitHub integration to avoid authentication issues.
+</details>
 
 ---
 
-### Target Branch (`--target-branch`)
+<details>
+<summary>Details : Target Branch (`--target-branch`)</summary>
+
 1. **Default Behavior**:  
    - Defaults to the current branch detected from the local Git repository.  
 
@@ -267,39 +220,25 @@ Docstring-AI uses a structured hierarchy to determine which Git configuration to
 
 > [!TIP]
 > Default branch detection ensures that pull requests target the branch you're actively working on, reducing manual configuration.
+</details>
 
 ---
 
-### Branch Name (`--branch-name`)
+<details>
+<summary>Details : Branch Name (`--branch-name`)</summary>
+
+
 1. **Default Behavior**:  
    - Automatically generated if not specified.  
      Example: `feature/docstring-updates-YYYYMMDDHHMMSS`.  
 
 2. **Overrides**:  
    - Can be manually specified using the `--branch-name` flag to ensure consistency or adhere to naming conventions.
+</details>
 
 ---
 
-### Summary Table
-
-| Configuration     | Priority (Highest to Lowest)                                                | Default Behavior                          |
-|-------------------|----------------------------------------------------------------------------|-------------------------------------------|
-| Repository (`--pr`) | 1. `--use-repo-config` → 2. Detect Local Config → 3. `--pr` → 4. `GITHUB_REPO` | Detects local repository and suggests it. |
-| Token (`--github-token`) | 1. `--github-token` → 2. `GITHUB_TOKEN`                               | None. Must be explicitly provided.        |
-| Target Branch (`--target-branch`) | 1. `--target-branch` → 2. `GITHUB_TARGET_BRANCH`              | Defaults to the current branch.           |
-| Branch Name (`--branch-name`) | 1. `--branch-name`                                              | Auto-generated.                           |
-
----
-
-### Example Scenario
-
-If you run the following command:
-```bash
-poetry run . --path=/path/to/repo --pr=myuser/myrepo
-```
-
-
-## 🔍 Detailed Explanation of `--pr-depth`
+### 🔍 Explanation of `--pr-depth`
 
 The `--pr-depth` argument controls how changes are grouped into pull requests based on folder structure. It allows for flexibility in organizing PRs, especially for large repositories.
 
@@ -387,21 +326,6 @@ When the `--manual` flag is enabled, Docstring-AI introduces an interactive revi
   - `OPENAI_API_KEY`: Your OpenAI API key.
   - `GITHUB_TOKEN`: Your GitHub personal access token.
   - `GITHUB_REPO`: GitHub repository in the format `owner/repository`.
-
-- **.env File**:
-  - Create a `.env` file by copying the template:
-```bash
-cp .env.template .env
-```
-  - Populate the necessary environment variables in the `.env` file.
-
-### 🛠️ Development
-
-- **Logging**:
-  - All operations and errors are logged to `docstring_ai.log` for easy debugging and monitoring.
-
-- **Caching**:
-  - Implements a SHA-256 caching mechanism (`docstring_cache.json`) to track changes and optimize performance by avoiding redundant processing.
 
 ### 🤝 Contributing
 
