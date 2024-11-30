@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 from functools import partial
 from datetime import datetime
-
+from docstring_ai import EXCLUDE_FILES_FOR_PROJECT_DOCUMENTATION
 import openai
 import tiktoken
 from tqdm import tqdm
@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 
 class TreeConfig(BaseModel):
     base_path: Path = Field(description="Base Path of the project")
+    excluded_files: List[Path] =Field( description="List of file to Exclude.")
     repositories_to_ignore: List[str] = Field(default = [] , description="List of repository paths to ignore.")
     extensions_to_ignore: List[str] = Field(default = ['.daicache'], description="List of file extensions to ignore.")
     apply_gitignore_policy: Optional[bool] = Field(default=True, description="Whether to apply .gitignore rules.")
@@ -83,34 +84,40 @@ def generate_files_descriptions(
     repo_path: str,
     project_tree: str,
     directory_descriptions: Dict[str, str]
-    ):
+):
     file_descriptions_list = []
-    for file in files_to_describe:
-        relative_path = str(Path(os.path.relpath(file, repo_path)))
-        if not any(str(Path(entry["file"])) == relative_path for entry in context_summary):
-            try:
 
+    # Initialize tqdm for progress tracking
+    with tqdm(total=len(files_to_describe), desc="Generating File Descriptions", unit="file") as pbar:
+        for file in files_to_describe:
+            relative_path = str(Path(os.path.relpath(file, repo_path)))
+            if not any(str(Path(entry["file"])) == relative_path for entry in context_summary):
+                try:
+                    file_description = generate_file_description(
+                        assistant_id=assistant_id,
+                        thread_id=thread_id,
+                        project_tree=project_tree,
+                        directory_descriptions=directory_descriptions,
+                        file_path=file
+                    )
 
-                file_description = generate_file_description(
-                    assistant_id=assistant_id,
-                    thread_id=thread_id,
-                    project_tree=project_tree,
-                    directory_descriptions=directory_descriptions,
-                    file_path=file
-                )
+                    # Save description
+                    description_file_path = output_dir / Path(file).with_suffix('.txt')
+                    description_file_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(description_file_path, 'w', encoding='utf-8') as f:
+                        f.write(file_description)
 
-                # Save description
-                description_file_path = output_dir / Path(file).with_suffix('.txt')
-                description_file_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(description_file_path, 'w', encoding='utf-8') as f:
-                    f.write(file_description)
+                    file_descriptions_list.append(str(description_file_path))
+                    context_summary.append({"file": relative_path, "description": file_description})
 
-                file_descriptions_list.append(str(description_file_path))
-                context_summary.append({"file": relative_path, "description": file_description})
+                except Exception as e:
+                    logging.error(f"Failed to generate description for {file}: {e}")
 
-            except Exception as e:
-                logging.error(f"Failed to generate description for {file}: {e}")
+            # Update the progress bar
+            pbar.update(1)
+
     return file_descriptions_list
+
 
 def generate_descriptions(
     files_to_describe: List[str],
@@ -140,7 +147,7 @@ def generate_descriptions(
     """
     description_file_ids = []
     repo_path = Path(repo_path)
-    tree_config = TreeConfig(base_path= repo_path)
+    tree_config = TreeConfig(base_path= repo_path , excluded_files = EXCLUDE_FILES_FOR_PROJECT_DOCUMENTATION)
     project_tree = dump_tree(path= repo_path, config= tree_config)
 
     directory_descriptions = generate_folder_descriptions(repo_path =repo_path, file_tree = project_tree)

@@ -37,5 +37,6 @@ from .lib.config import (
     CHROMA_COLLECTION_NAME,  # str: The name of the ChromaDB collection used to store context data.
     CACHE_FILE_NAME,  # str: The name of the file used for caching purposes to optimize retrieval.
     CONTEXT_SUMMARY_PATH,  # str: The file path for storing context summaries during processing tasks.
-    DATA_PATH  # str: The path where data files are stored.
+    DATA_PATH,  # str: The path where data files are stored.,
+    EXCLUDE_FILES_FOR_PROJECT_DOCUMENTATION
 )
