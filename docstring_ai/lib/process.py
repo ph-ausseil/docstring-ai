@@ -22,25 +22,25 @@ from tqdm import tqdm
 from docstring_ai.lib.utils import (
     ensure_docstring_header,
     check_git_repo,
-    repo_has_uncommitted_changes,
-    file_has_uncommitted_changes,
     load_cache,
     save_cache,
     get_python_files,
     sort_files_by_size,
     prompt_user_confirmation,
-    show_diff,
     compute_sha256,
     traverse_repo,
-    create_backup
+    create_backup,
+    filter_files_by_hash
 )
-from docstring_ai.lib.prompt_utils import (
+
+from docstring_ai.lib.prompt_utils import generate_descriptions
+from docstring_ai.lib.llm_utils import (
+    initialize_and_create_assistant,
     initialize_assistant,
     update_assistant_tool_resources,
     create_thread,
     construct_few_shot_prompt,
     create_file_with_docstring,
-    generate_file_description
 )
 from docstring_ai.lib.chroma_utils import (
     initialize_chroma,
@@ -53,112 +53,25 @@ from docstring_ai.lib.docstring_utils import (
 )
 from docstring_ai.lib.github_utils import create_github_pr, checkout_branch, commit_and_push_changes
 from docstring_ai import (
-    MAX_TOKENS, 
-    CHROMA_COLLECTION_NAME, 
-    CACHE_FILE_NAME, 
-    DATA_PATH, 
+    MAX_TOKENS,
+    CHROMA_COLLECTION_NAME,
+    CACHE_FILE_NAME,
+    DATA_PATH,
     CONTEXT_SUMMARY_PATH,
 )
 
-def initialize_and_create_assistant(api_key: str) -> Tuple[str, str]:
-    """
-    Initializes the OpenAI Assistant and creates a new thread.
-    Handles exceptions during initialization and thread creation.
 
-    Args:
-        api_key (str): OpenAI API key.
-
-    Returns:
-        Tuple[str, str]: Assistant ID and Thread ID.
-    """
-    try:
-        assistant_id = initialize_assistant(api_key)
-        if not assistant_id:
-            logging.error("Failed to initialize OpenAI Assistant.")
-            return None, None
-        logging.debug(f"Assistant initialized with ID: {assistant_id}")
-
-        thread_id = create_thread(api_key=api_key, assistant_id=assistant_id)
-        if not thread_id:
-            logging.error("Failed to create a new thread for the Assistant.")
-            return assistant_id, None
-        logging.debug(f"Thread created with ID: {thread_id}")
-
-        return assistant_id, thread_id
-    except Exception as e:
-        logging.error(f"An error occurred during Assistant initialization: {e}")
-        return None, None
-
-
-def process_file_descriptions(
-    files_to_process: List[str], 
-    output_dir: Path, 
-    assistant_id: str, 
-    thread_id: str, 
-    context_summary: List[Dict], 
-    collection, 
-    api_key: str, 
-    repo_path: str  # Add repo_path parameter
-) -> List[str]:
-    """
-    Generates detailed descriptions for files, embeds them into ChromaDB, and uploads to OpenAI, updating the Assistant's resources.
-
-    Args:
-        files_to_process (List[str]): List of file paths to generate descriptions for.
-        output_dir (Path): Directory to store description files.
-        assistant_id (str): OpenAI Assistant ID.
-        thread_id (str): OpenAI Thread ID.
-        context_summary (List[Dict]): Current context summary.
-        collection: ChromaDB collection.
-        api_key (str): OpenAI API key.
-        repo_path (str): Repository path for computing relative paths.
-
-    Returns:
-        List[str]: List of successfully uploaded description file IDs.
-    """
-    file_descriptions_list = []
-    description_file_ids = []
-    for file in files_to_process:
-        relative_path = str(Path(os.path.relpath(file, repo_path)))
-        if not any(str(Path(entry["file"])) == relative_path for entry in context_summary):
-            try:
-                with open(file, 'r', encoding='utf-8') as f:
-                    file_content = f.read()
-
-                file_description = generate_file_description(
-                    assistant_id=assistant_id,
-                    thread_id=thread_id, 
-                    file_content=file_content
-                )
-
-                # Save description
-                description_file_path = output_dir / Path(file).with_suffix('.txt')
-                description_file_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(description_file_path, 'w', encoding='utf-8') as f:
-                    f.write(file_description)
-
-                file_descriptions_list.append(str(description_file_path))
-                context_summary.append({"file": relative_path, "description": file_description})
-
-            except Exception as e:
-                logging.error(f"Failed to generate description for {file}: {e}")
-
-    # Embed and upload descriptions
-    if file_descriptions_list:
-        embed_and_store_files(collection, file_descriptions_list, tags={"file_type": "description"})
-        description_file_ids = upload_files_to_openai(file_descriptions_list)
-    return description_file_ids
 
 
 def process_files_and_create_prs(
-    repo_path: str, 
-    api_key: str, 
-    create_pr: bool, 
-    github_token: str, 
-    github_repo: str, 
-    branch_name: str, 
-    pr_name: str, 
-    pr_depth: int, 
+    repo_path: str,
+    api_key: str,
+    create_pr: bool,
+    github_token: str,
+    github_repo: str,
+    branch_name: str,
+    pr_name: str,
+    pr_depth: int,
     manual: bool,
     target_branch: str
 ) -> None:
@@ -250,8 +163,8 @@ def process_files_and_create_prs(
     logging.info(f"{len(files_to_describe)} files need descriptions after cache check.")
 
     if files_to_describe:
-        description_file_ids = process_file_descriptions(
-            files_to_process=files_to_describe,
+        description_file_ids = generate_descriptions(
+            files_to_describe=files_to_describe,
             output_dir=output_dir,
             assistant_id=assistant_id,
             thread_id=thread_id,
@@ -334,10 +247,10 @@ def process_files_and_create_prs(
 
                 # Create GitHub PR
                 pr_created = create_github_pr(
-                    repo_path=repo_path, 
-                    github_token=github_token, 
-                    github_repo=github_repo, 
-                    branch_name=branch_name  + f"_{folder_rel_path.replace(os.sep, '_')}", 
+                    repo_path=repo_path,
+                    github_token=github_token,
+                    github_repo=github_repo,
+                    branch_name=branch_name  + f"_{folder_rel_path.replace(os.sep, '_')}",
                     pr_name=pr_name + f" `{folder_rel_path}`",
                     target_branch=target_branch
                 )
@@ -410,8 +323,8 @@ def process_single_file(
 
     # Construct few-shot prompt
     few_shot_prompt = construct_few_shot_prompt(
-        collection=collection, 
-        classes=classes, 
+        collection=collection,
+        classes=classes,
         max_tokens=MAX_TOKENS - len(original_code),
         context=file_description
     )
@@ -516,59 +429,3 @@ def approve_and_save_file(
         logging.error(f"Error updating file {python_file_path}: {e}")
         return False
 
-
-def filter_files_by_hash(file_paths: List[str], repo_path: str, cache: Dict[str, str]) -> List[str]:
-    """
-    Filters files based on SHA-256 hash and cache.
-
-    Args:
-        file_paths (List[str]): List of file paths to filter.
-        repo_path (str): Path to the repository.
-        cache (Dict[str, str]): Cache dictionary storing file hashes.
-
-    Returns:
-        List[str]: List of file paths that need processing.
-    """
-    changed_files = []
-    logging.info("Starting file hash verification...")
-    
-    with tqdm(total=len(file_paths), desc="Verifying file hashes", unit="file") as pbar:
-        for file_path in file_paths:
-            try:
-                current_hash = compute_sha256(file_path)
-                relative_path = os.path.relpath(file_path, repo_path)
-                cached_hash = cache.get(relative_path)
-                
-                if current_hash != cached_hash:
-                    changed_files.append(file_path)
-            except Exception as e:
-                logging.error(f"Error verifying hash for {file_path}: {e}")
-            finally:
-                pbar.update(1)
-    
-    logging.info(f"Hash verification completed. {len(changed_files)} files require processing.")
-    return changed_files
-
-
-def upload_files_to_openai(file_paths: List[str]) -> List[str]:
-    """
-    Uploads files to OpenAI and returns file IDs.
-
-    Args:
-        file_paths (List[str]): List of file paths to upload.
-
-    Returns:
-        List[str]: List of file IDs.
-    """
-    file_ids = []
-    for file_path in file_paths:
-        try:
-            with open(file_path, "rb") as f:
-                response = openai.files.create(
-                    file=f,
-                    purpose="assistants"
-                )
-            file_ids.append(response.id)
-        except Exception as e:
-            logging.error(f"Failed to upload {file_path}: {e}")
-    return file_ids
