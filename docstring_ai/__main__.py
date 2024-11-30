@@ -56,7 +56,7 @@ from docstring_ai.lib.utils import (
     sort_files_by_size,
     prompt_user_confirmation,
 )
-from docstring_ai.lib.prompt_utils import create_file_with_docstring
+from docstring_ai.lib.llm_utils import create_file_with_docstring
 from docstring_ai.lib.config import CACHE_FILE_NAME, CONTEXT_SUMMARY_PATH, setup_logging
 
 # Load environment variables from .env file

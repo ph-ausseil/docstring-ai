@@ -23,7 +23,7 @@ Imports:
     difflib: For generating diffs between file contents.
     DOCSTRING_AI_TAG, DATA_PATH: For configuration constants.
 """
-
+from tqdm import tqdm
 import os
 import openai
 import argparse
@@ -34,15 +34,51 @@ import logging
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 import tiktoken
-from typing import List, Dict
+from typing import List, Dict, Optional
 import hashlib
 from dotenv import load_dotenv
 from datetime import datetime
 from github import Github, GithubException
 import subprocess
 import sys
+from pathlib import Path
 import difflib
 from docstring_ai.lib.config import DOCSTRING_AI_TAG, DATA_PATH
+from pydantic import BaseModel, Field
+
+
+def filter_files_by_hash(file_paths: List[str], repo_path: str, cache: Dict[str, str]) -> List[str]:
+    """
+    Filters files based on SHA-256 hash and cache.
+
+    Args:
+        file_paths (List[str]): List of file paths to filter.
+        repo_path (str): Path to the repository.
+        cache (Dict[str, str]): Cache dictionary storing file hashes.
+
+    Returns:
+        List[str]: List of file paths that need processing.
+    """
+    changed_files = []
+    logging.debug("Starting file hash verification...")
+    
+    with tqdm(total=len(file_paths), desc="Verifying file hashes", unit="file") as pbar:
+        for file_path in file_paths:
+            try:
+                current_hash = compute_sha256(file_path)
+                relative_path = os.path.relpath(file_path, repo_path)
+                cached_hash = cache.get(relative_path)
+                
+                if current_hash != cached_hash:
+                    changed_files.append(file_path)
+            except Exception as e:
+                logging.error(f"Error verifying hash for {file_path}: {e}")
+            finally:
+                pbar.update(1)
+    
+    logging.debug(f"Hash verification completed. {len(changed_files)} files require processing.")
+    return changed_files
+
 
 
 def ensure_docstring_header(content: str) -> str:
@@ -125,7 +161,7 @@ def check_git_repo(repo_path: str) -> bool:
             text=True,
             check=True
         )
-        logging.info("✅ Git repository detected.")
+        logging.debug("✅ Git repository detected.")
         return True
     except subprocess.CalledProcessError:
         logging.warning("❌ The specified path is not a Git repository.")
@@ -165,7 +201,7 @@ def repo_has_uncommitted_changes(repo_path: str) -> bool:
                 sys.exit(0)
             return True
         else:
-            logging.info("✅ No uncommitted changes detected.")
+            logging.debug("✅ No uncommitted changes detected.")
             return False
     except subprocess.CalledProcessError as e:
         logging.error(f"Error checking uncommitted changes: {e}")
@@ -183,12 +219,12 @@ def load_cache(cache_file: str) -> Dict[str, str]:
         Dict[str, str]: A dictionary mapping file paths to their SHA-256 hashes. If the file does not exist, an empty dict is returned.
     """
     if not os.path.exists(cache_file):
-        logging.info(f"No cache file found at '{cache_file}'. Starting with an empty cache.")
+        logging.debug(f"No cache file found at '{cache_file}'. Starting with an empty cache.")
         return {}
     try:
         with open(cache_file, 'r', encoding='utf-8') as f:
             cache = json.load(f)
-        logging.info(f"Loaded cache with {len(cache)} entries.")
+        logging.debug(f"Loaded cache with {len(cache)} entries.")
         return cache
     except Exception as e:
         logging.error(f"Error loading cache file '{cache_file}': {e}")
@@ -206,7 +242,7 @@ def save_cache(cache_file: str, cache: Dict[str, str]) -> None:
     try:
         with open(cache_file, 'w', encoding='utf-8') as f:
             json.dump(cache, f, indent=2)
-        logging.info(f"Cache saved with {len(cache)} entries.")
+        logging.debug(f"Cache saved with {len(cache)} entries.")
     except Exception as e:
         logging.error(f"Error saving cache file '{cache_file}': {e}")
 
@@ -229,7 +265,7 @@ def get_python_files(repo_path: str) -> List[str]:
             if file.endswith('.py'):
                 full_path = os.path.join(root, file)
                 python_files.append(os.path.relpath(full_path, repo_path))
-    logging.info(f"Total Python files found: {len(python_files)}")
+    logging.debug(f"Total Python files found: {len(python_files)}")
     return python_files
 
 
@@ -244,7 +280,7 @@ def sort_files_by_size(file_paths: List[str]) -> List[str]:
         List[str]: A list of sorted file paths.
     """
     sorted_files = sorted(file_paths, key=lambda x: os.path.getsize(x))
-    logging.info("Files sorted by size (ascending).")
+    logging.debug("Files sorted by size (ascending).")
     return sorted_files
 
 
@@ -307,7 +343,7 @@ def create_backup(file_path: str) -> None:
         with open(file_path, 'r', encoding='utf-8') as original_file, \
              open(backup_path, 'w', encoding='utf-8') as backup_file:
             backup_file.write(original_file.read())
-        logging.info(f"Backup created at {backup_path}")
+        logging.debug(f"Backup created at {backup_path}")
     except Exception as e:
         logging.error(f"Error creating backup for {file_path}: {e}")
 
