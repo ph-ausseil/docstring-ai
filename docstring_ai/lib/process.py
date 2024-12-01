@@ -3,7 +3,7 @@
 This module processes Python files to add docstrings using OpenAI's Assistant,
 embeds the files in ChromaDB, and integrates with GitHub for pull request creation.
 
-Functions:
+## Functions:
 - process_files_and_create_prs: Processes Python files, adds docstrings, and creates pull requests.
 """
 
@@ -79,7 +79,7 @@ def process_files_and_create_prs(
     Processes Python files in the specified repository, adds docstrings using OpenAI's Assistant,
     and creates pull requests on GitHub if specified.
 
-    **Steps:**
+    ### **Steps:**
     1. Setup and Initialization: Verify the presence of a Git repository, initialize ChromaDB, load cache.
     2. File Discovery and Preparation: Retrieve and sort Python files, filter out unchanged files.
     3. Embedding and Assistant Setup: Embed descriptions into ChromaDB and initialize Assistant.
@@ -276,7 +276,7 @@ def process_single_file(
     """
     Processes a single Python file: adds docstrings, updates context, and handles caching.
 
-    **Steps:**
+    ### **Steps:**
     1. File Reading and Initial Setup: Compute the file's relative path within the repository and read its content.
     2. Class Parsing and Context Retrieval: Parse the file for class definitions and retrieve relevant context summaries.
     3. Few-Shot Prompt Construction: Construct a few-shot prompt using retrieved context.

@@ -7,6 +7,9 @@ nav:
   - Config: config.md
   - Chroma DB: chroma.md
   - Docstring Utilites: utils.md
+  - GitHub Utilities: gh_utils.md
+  - LLM Utilities: llm_utils.md
+  - Processes: process.md
 
 plugins:
   - mkdocstrings:

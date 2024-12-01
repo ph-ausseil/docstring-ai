@@ -5,7 +5,7 @@ for adding docstrings to Python code. It utilizes OpenAI's API to create and
 interact with the assistant, manage threads, and construct prompts based on
 context from ChromaDB.
 
-Functions:
+## Functions:
 - initialize_assistant: Initialize or retrieve an existing assistant.
 - update_assistant_tool_resources: Update the assistant's resources with file IDs.
 - create_thread: Create a new thread for the assistant's interaction.
