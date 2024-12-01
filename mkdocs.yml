@@ -4,10 +4,15 @@ theme:
 
 nav:
   - Home: index.md
+  - Config: config.md
+  - Chroma DB: chroma.md
+  - Docstring Utilites: utils.md
 
 plugins:
   - mkdocstrings:
       handlers:
         python:
+          setup_commands:
+            - "import sys; sys.path.insert(0, '.')"
           options:
             show_source: true
