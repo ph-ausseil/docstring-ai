@@ -4,7 +4,7 @@ This module automates the process of adding docstrings to Python files,
 integrating with GitHub to create pull requests (PRs). It utilizes OpenAI's API
 for generating docstrings and leverages command-line arguments for configuration.
 
-Modules:
+## Modules:
 - argparse: For parsing command-line arguments.
 - os: For file and environment operations.
 - openai: To interact with the OpenAI API.
@@ -15,7 +15,7 @@ Modules:
 - sys: For system-specific parameters and functions.
 - dotenv: To load environment variables from a .env file.
 
-Functions:
+## Functions:
 - main: The entry point of the script that handles argument parsing and execution flow.
 """
 

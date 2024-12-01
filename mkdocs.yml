@@ -1,0 +1,91 @@
+site_name: Docstring AI
+
+repo_url: https://github.com/ph-ausseil/docstring-ai
+repo_name: docstring-ai
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.expand
+    - navigation.top
+    - navigation.bottom
+    - navigation.sidebar
+    - navigation.paging
+    - navigation.tabs
+    - navigation.prev_next
+    - navigation.search
+    - navigation.back_to_top
+    - navigation.footer
+    - navigation.meta
+    - navigation.meta_author
+    - navigation.meta_description
+    - navigation.meta_keywords
+    - navigation.meta_viewport
+    - navigation.meta_robots
+    - navigation.meta_open_graph
+    - navigation.meta_twitter
+    - navigation.meta_google
+    - navigation.meta_canonical
+    - navigation.meta_favicon
+    - navigation.meta_theme_color
+    - navigation.meta_apple_touch_icon
+    - navigation.meta_apple_mobile_web_app_title
+    - navigation.meta_apple_mobile_web_app_status_bar_style
+    - navigation.meta_apple_mobile_web_app_capable
+    - navigation.meta_apple_mobile_web_app_fullscreen
+    - navigation.meta_apple_mobile_web_app_orientation
+    - navigation.meta_apple_mobile_web_app_color
+    - navigation.meta_apple_mobile_web_app_toolbar
+    - navigation.meta_apple_mobile_web_app_translucent
+    - navigation.meta_apple_mobile_web_app_navigation
+    - navigation.meta_apple_mobile_web_app_format_detection
+    - navigation.meta_apple_mobile_web_app_smart_banner
+    - navigation.meta_apple_mobile_web_app_smart_banner_icon
+    - navigation.meta_apple_mobile_web_app_smart_banner_title
+    - navigation.meta_apple_mobile_web_app_smart_banner_button
+    - navigation.meta_apple_mobile_web_app_smart_banner_price
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_suffix
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_amount
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_currency
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_code
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_code_prefix
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_code_suffix
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_code_amount
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_code_currency
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_code_separator
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_code_decimal
+    - navigation.meta_apple_mobile_web_app_smart_banner_price_code_group
+
+nav:
+  - Home: index.md
+  - Config: config.md
+  - Chroma DB: chroma.md
+  - Docstring Utilites: utils.md
+  - GitHub Utilities: gh_utils.md
+  - LLM Utilities: llm_utils.md
+  - Processes: process.md
+
+publish_dir: site
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          setup_commands:
+            - "import sys; sys.path.insert(0, '.')"
+          options:
+            show_source: true
