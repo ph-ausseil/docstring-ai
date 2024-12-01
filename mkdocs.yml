@@ -1,0 +1,13 @@
+site_name: Docstring AI
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
