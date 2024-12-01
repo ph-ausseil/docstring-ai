@@ -1,11 +1,15 @@
 site_name: Docstring AI
+
+repo_url: https://github.com/ph-ausseil/docstring-ai
+repo_name: docstring-ai
+
 theme:
   name: material
-  palette: 
+  palette:
     # Palette toggle for light mode
     - scheme: default
       toggle:
-        icon: material/brightness-7 
+        icon: material/brightness-7
         name: Switch to dark mode
 
     # Palette toggle for dark mode
@@ -20,7 +24,7 @@ theme:
     - navigation.bottom
     - navigation.sidebar
     - navigation.paging
-    - navigation.tabs.sticky
+    - navigation.tabs
     - navigation.prev_next
     - navigation.search
     - navigation.back_to_top
@@ -73,6 +77,8 @@ nav:
   - GitHub Utilities: gh_utils.md
   - LLM Utilities: llm_utils.md
   - Processes: process.md
+
+publish_dir: site
 
 plugins:
   - search
