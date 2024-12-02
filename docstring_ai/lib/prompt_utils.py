@@ -97,6 +97,7 @@ def generate_files_descriptions(
                         assistant_id=assistant_id,
                         thread_id=thread_id,
                         project_tree=project_tree,
+                        project_path=repo_path,
                         directory_descriptions=directory_descriptions,
                         file_path=file
                     )

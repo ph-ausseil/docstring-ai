@@ -47,6 +47,41 @@ from docstring_ai.lib.config import DOCSTRING_AI_TAG, DATA_PATH
 from pydantic import BaseModel, Field
 
 
+def get_parent_folders(file_path: Path, base_path: Path) -> list:
+    """
+    Given a file path and a base path, return a list of relative paths of parent folders.
+
+    Args:
+        file_path (Path): The path of the file.
+        base_path (Path): The base path to calculate the relative paths.
+
+    Returns:
+        list: A list of relative parent folder paths from the base to the file's immediate parent.
+    
+    Raises:
+        ValueError: If the base path is not a parent of the file path.
+    """
+    # Ensure both paths are absolute
+    file_path = Path(file_path).resolve()
+    base_path = Path(base_path).resolve()
+
+    # Validate that the base path is a parent of the file path
+    if not base_path in file_path.parents and base_path != file_path:
+        raise ValueError("The base path must be a parent of the file path.")
+
+    # Compute the relative path to the file from the base path
+    relative_path = file_path.relative_to(base_path)
+
+    # Collect the relative parent paths
+    parents = []
+    current_path = Path()
+    for part in relative_path.parts[:-1]:  # Skip the file name
+        current_path /= part
+        parents.append(str(current_path))
+
+    return parents
+
+
 def filter_files_by_hash(file_paths: List[str], repo_path: str, cache: Dict[str, str]) -> List[str]:
     """
     Filters files based on SHA-256 hash and cache.

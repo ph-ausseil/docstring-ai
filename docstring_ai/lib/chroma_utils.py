@@ -223,3 +223,7 @@ def store_class_summary(collection: chromadb.Collection, file_path: str, class_n
     except Exception as e:
         logging.error(f"Error storing class summary for '{class_name}': {e}")
         logging.error(traceback.format_exc())
+
+
+def get_folder_description(folder_path : Path)  
+    pass

@@ -18,6 +18,7 @@ import time
 import openai
 from openai.types.beta import vector_store_create_params
 import chromadb
+from docstring_ai.lib.utils import get_parent_folders
 from docstring_ai.lib.chroma_utils import get_relevant_context
 import logging
 from typing import List, Dict, Callable, Tuple
@@ -222,7 +223,7 @@ def send_message_to_assistant(
     prompt: str,
     response_format: BaseModel = None,
     tools: List = [],
-    tool_choice = "auto",
+    tool_choice= "auto",
     functions: Dict[str, Callable] = {}
 ) -> str:
     """
@@ -270,6 +271,7 @@ def send_message_to_assistant(
 def generate_file_description(
     assistant_id: str,
     thread_id: str,
+    project_path : Path,
     project_tree: str,
     directory_descriptions: Dict[str, str],
     file_path: Path
@@ -300,6 +302,11 @@ def generate_file_description(
 
     if project_tree:
         prompt += (f"This is the project structure : {project_tree}\n\n")
+
+    from docstring_ai.lib.chroma_utils import get_folder_description
+    for folder_path in get_parent_folders(file_path =  Path(file_path), base_path = project_path): 
+        prompt += f"This is the description of {folder_path}:\n{get_folder_description(folder_path = folder_path)}"
+
     
     if file_path:
         prompt += f"The Python file to describe is: `{file_path}`\n\n"
